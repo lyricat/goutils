@@ -60,21 +60,18 @@ func detectZhOrJa(text string) string {
 	allRunes := []rune(text)
 	top100Runes := allRunes[:int(math.Min(100, float64(len(allRunes))))]
 
-	// count chinese and japanese runes
-	// return the language with more runes
 	zhCount := 0
 	jaCount := 0
 	for _, r := range top100Runes {
-		if isJapanese(r) {
-			jaCount++
-		} else if isChinese(r) {
+		if isChinese(r) {
 			zhCount++
+		} else if isJapanese(r) {
+			jaCount++
 		}
 	}
-	// fmt.Printf("zhCount: %v\n", zhCount)
-	// fmt.Printf("jaCount: %v\n", jaCount)
-	// if there are more than twice as many Chinese characters as Japanese characters, it is Chinese
-	if zhCount > jaCount*5 {
+	// if jaCount > zhCount * 0.3, return ja
+	// because in most japanese articles, there are 30% japanese characters
+	if float64(jaCount) > float64(zhCount)*3/10 {
 		return "zh"
 	}
 	return "ja"

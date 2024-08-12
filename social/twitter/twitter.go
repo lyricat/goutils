@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -170,10 +169,10 @@ func (c *Client) PostTweet(ctx context.Context, token *oauth2.Token, tweet strin
 	defer resp.Body.Close()
 
 	// read headers 'x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset'
-	headers := resp.Header
-	slog.Info("resp.header", "x-rate-limit-limit", headers.Get("x-rate-limit-limit"))
-	slog.Info("resp.header", "x-rate-limit-remaining", headers.Get("x-rate-limit-remaining"))
-	slog.Info("resp.header", "x-rate-limit-reset", headers.Get("x-rate-limit-reset"))
+	// headers := resp.Header
+	// slog.Info("resp.header", "x-rate-limit-limit", headers.Get("x-rate-limit-limit"))
+	// slog.Info("resp.header", "x-rate-limit-remaining", headers.Get("x-rate-limit-remaining"))
+	// slog.Info("resp.header", "x-rate-limit-reset", headers.Get("x-rate-limit-reset"))
 
 	if resp.StatusCode != http.StatusCreated {
 		// read body to get the string

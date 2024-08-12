@@ -13,9 +13,21 @@ type (
 	Client struct {
 		cfg Config
 	}
+
 	Config struct {
 		botToken  string
 		channelID string
+	}
+
+	TelegramVerifyResp struct {
+		Ok          bool   `json:"ok"`
+		ErrorCode   int    `json:"error_code,omitempty"`
+		Description string `json:"description,omitempty"`
+
+		Result struct {
+			Status          string `json:"status"`
+			CanPostMessages bool   `json:"can_post_messages"`
+		} `json:"result"`
 	}
 )
 
@@ -52,7 +64,7 @@ func (s *Client) SendTextMessage(ctx context.Context, title, text, url string) e
 	smr := SendMessageReq{
 		ChatID:    s.cfg.channelID,
 		ParseMode: "markdown",
-		Text:      fmt.Sprintf("# *%s*\n\n%s", title, text),
+		Text:      fmt.Sprintf("*%s*\n\n%s", title, text),
 		LinkPreviewOptions: LinkPreviewOptions{
 			ShowAboveText: true,
 		},
@@ -101,17 +113,6 @@ func (s *Client) SendTextMessageRaw(ctx context.Context, smr SendMessageReq) err
 	}
 
 	return nil
-}
-
-type TelegramVerifyResp struct {
-	Ok          bool   `json:"ok"`
-	ErrorCode   int    `json:"error_code,omitempty"`
-	Description string `json:"description,omitempty"`
-
-	Result struct {
-		Status          string `json:"status"`
-		CanPostMessages bool   `json:"can_post_messages"`
-	} `json:"result"`
 }
 
 func (s *Client) VerifyPermission(ctx context.Context) error {

@@ -30,7 +30,6 @@ func Modify(id, modifier string) string {
 	if err != nil {
 		panic(err)
 	}
-
 	return uuid.NewV5(ns, modifier).String()
 }
 
