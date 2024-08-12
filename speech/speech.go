@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	Detector struct {
+	Client struct {
 		cfg Config
 	}
 	Config struct {
@@ -19,13 +19,13 @@ type (
 	}
 )
 
-func New(cfg Config) *Detector {
-	return &Detector{
+func New(cfg Config) *Client {
+	return &Client{
 		cfg: cfg,
 	}
 }
 
-func (d *Detector) ToText(langCode string, audioData []byte) (string, error) {
+func (d *Client) ToText(langCode string, audioData []byte) (string, error) {
 	url := fmt.Sprintf("%sspeech/recognition/conversation/cognitiveservices/v1?language=%s", d.cfg.AzureEndpoint, langCode)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(audioData))
 	if err != nil {
