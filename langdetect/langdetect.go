@@ -58,7 +58,7 @@ func (d *Detector) FormalizeName(lang, text string) string {
 func detectZhOrJa(text string) string {
 	// get top 100 runes from string
 	allRunes := []rune(text)
-	top100Runes := allRunes[:int(math.Min(100, float64(len(allRunes))))]
+	top100Runes := allRunes[:int(math.Min(1000, float64(len(allRunes))))]
 
 	zhCount := 0
 	jaCount := 0
@@ -72,9 +72,9 @@ func detectZhOrJa(text string) string {
 	// if jaCount > zhCount * 0.3, return ja
 	// because in most japanese articles, there are 30% japanese characters
 	if float64(jaCount) > float64(zhCount)*3/10 {
-		return "zh"
+		return "ja"
 	}
-	return "ja"
+	return "zh"
 }
 
 func isChinese(c rune) bool {
