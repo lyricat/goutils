@@ -1,4 +1,4 @@
-package speechdetect
+package speech
 
 import (
 	"bytes"
