@@ -120,14 +120,17 @@ func (s *Client) ReplyTextMessage(replyToken, quoteToken string, text string) (*
 func (s *Client) GetContent(messageID string) ([]byte, error) {
 	resp, err := s.blobBot.GetMessageContent(messageID)
 	if err != nil {
-		return nil, err
-	}
-	// read the content as buffer
-	buf, err := io.ReadAll(resp.Body)
-	if err != nil {
+		slog.Error("[line] failed to get content", "error", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	// read the content as buffer
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Error("[line] failed to read content", "error", err)
+		return nil, err
+	}
 
 	return buf, nil
 }
