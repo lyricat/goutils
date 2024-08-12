@@ -134,3 +134,63 @@ func (s *Client) GetContent(messageID string) ([]byte, error) {
 
 	return buf, nil
 }
+
+func (s *Client) SendBroadcaseMessage(ctx context.Context, title, summary, coverUrl, url, actionLabel string) error {
+	if summary == "" {
+		summary = title
+	}
+	_, err := s.bot.Broadcast(&messaging_api.BroadcastRequest{
+		Messages: []messaging_api.MessageInterface{
+			&messaging_api.FlexMessage{
+				AltText: title,
+				Contents: messaging_api.FlexBubble{
+					Hero: &messaging_api.FlexImage{
+						Url:         coverUrl,
+						Align:       "center",
+						Size:        "full",
+						AspectMode:  "cover",
+						AspectRatio: "20:13",
+						Action: &messaging_api.UriAction{
+							Label: actionLabel,
+							Uri:   url,
+						},
+					},
+					Body: &messaging_api.FlexBox{
+						Layout: messaging_api.FlexBoxLAYOUT_VERTICAL,
+						Contents: []messaging_api.FlexComponentInterface{
+							&messaging_api.FlexText{
+								Text: title,
+								Size: "lg",
+								Wrap: true,
+							},
+							&messaging_api.FlexText{
+								Text:   summary,
+								Color:  "#666666",
+								Wrap:   true,
+								Size:   "sm",
+								Margin: "md",
+							},
+						},
+					},
+					Footer: &messaging_api.FlexBox{
+						Layout: messaging_api.FlexBoxLAYOUT_VERTICAL,
+						Contents: []messaging_api.FlexComponentInterface{
+							&messaging_api.FlexButton{
+								Style: "primary",
+								Action: &messaging_api.UriAction{
+									Label: actionLabel,
+									Uri:   url,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}, uuid.New())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
