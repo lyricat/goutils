@@ -10,6 +10,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/aws/aws-sdk-go/aws"
+	AwsCre "github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/bedrockruntime"
+	"github.com/aws/aws-sdk-go/service/bedrockruntime/bedrockruntimeiface"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -34,15 +39,23 @@ type (
 		cfg               Config
 		openaiClient      *openai.Client
 		azureOpenAIClient *azopenai.Client
+		bedrockClient     bedrockruntimeiface.BedrockRuntimeAPI
 	}
 
 	Config struct {
+		// openai
 		OpenAIApiKey string
 
+		// azure openai
 		AzureOpenAIApiKey                string
 		AzureOpenAIEndpoint              string
 		AzureOpenAIGptDeploymentID       string
 		AzureOpenAIEmbeddingDeploymentID string
+
+		// aws bedrock
+		AwsKey             string
+		AwsSecret          string
+		AwsBedrockModelArn string
 
 		Provider string
 
@@ -62,6 +75,7 @@ func (m GeneralChatCompletionMessage) Pretty() string {
 func New(cfg Config) *Instant {
 	var openaiClient *openai.Client
 	var azureOpenAIClient *azopenai.Client
+	var bedrockClient bedrockruntimeiface.BedrockRuntimeAPI
 	var err error
 
 	if cfg.OpenAIApiKey != "" {
@@ -77,10 +91,22 @@ func New(cfg Config) *Instant {
 		}
 	}
 
+	if cfg.AwsBedrockModelArn != "" {
+		sess := session.Must(session.NewSession((&aws.Config{
+			Region: aws.String("us-east-1"),
+			Credentials: AwsCre.NewStaticCredentials(
+				cfg.AwsKey,    // id
+				cfg.AwsSecret, // secret
+				""),           // token can be left blank for now
+		})))
+		bedrockClient = bedrockruntime.New(sess)
+	}
+
 	return &Instant{
 		cfg:               cfg,
 		openaiClient:      openaiClient,
 		azureOpenAIClient: azureOpenAIClient,
+		bedrockClient:     bedrockClient,
 	}
 }
 
@@ -119,6 +145,20 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 			}
 		}
 		ret, err = s.RawRequestAzureOpenAI(ctx, _messages)
+	} else if s.cfg.Provider == "bedrock" {
+		_messages := make([]BedRockClaudeChatMessage, 0, len(messages))
+		for _, message := range messages {
+			_messages = append(_messages, BedRockClaudeChatMessage{
+				Role: message.Role,
+				Content: []BedRockClaudeMessageContent{
+					{
+						Type: "text",
+						Text: message.Content,
+					},
+				},
+			})
+		}
+		ret, err = s.RawRequestAWSBedrockClaude(ctx, _messages)
 	}
 	if err != nil {
 		return "", err
