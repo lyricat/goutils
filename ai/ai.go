@@ -86,7 +86,7 @@ func New(cfg Config) *Instant {
 		keyCredential := azcore.NewKeyCredential(cfg.AzureOpenAIApiKey)
 		azureOpenAIClient, err = azopenai.NewClientWithKeyCredential(cfg.AzureOpenAIEndpoint, keyCredential, nil)
 		if err != nil {
-			slog.Error("[common.ai] NewClientWithKeyCredential error", "error", err)
+			slog.Error("[goutils.ai] NewClientWithKeyCredential error", "error", err)
 			return nil
 		}
 	}
@@ -112,9 +112,9 @@ func New(cfg Config) *Instant {
 
 func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (string, error) {
 	if s.cfg.Debug {
-		slog.Info("[common.ai] RawRequest messages:")
+		slog.Info("[goutils.ai] RawRequest messages:")
 		for _, message := range messages {
-			slog.Info("[common.ai] RawRequest message", "message", message.Pretty())
+			slog.Info("[goutils.ai] RawRequest message", "message", message.Pretty())
 		}
 	}
 
@@ -164,7 +164,7 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 		return "", err
 	}
 	if s.cfg.Debug {
-		slog.Info("[common.ai] RawRequest", "ret", ret)
+		slog.Info("[goutils.ai] RawRequest", "ret", ret)
 	}
 
 	return ret, nil
@@ -266,7 +266,7 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 	if params.Format == "json" {
 		js, err := s.GrabJsonOutput(ctx, resp)
 		if err != nil {
-			slog.Error("[common.ai] GrabJsonOutput error", "error", err)
+			slog.Error("[goutils.ai] GrabJsonOutput error", "error", err)
 			return nil, err
 		}
 		ret.Json = js
@@ -280,7 +280,7 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 	// try to parse the response
 	var resp map[string]any
 	if err := json.Unmarshal([]byte(input), &resp); err != nil {
-		slog.Error("[common.ai] GrabJsonOutput error", "input", input, "error", err)
+		slog.Error("[goutils.ai] GrabJsonOutput error", "input", input, "error", err)
 
 		// use regex to extract the json part
 		// it could be multiple lines
@@ -292,7 +292,7 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 		input = regexp.MustCompile(`\"`).ReplaceAllString(input, "\"")
 
 		if err := json.Unmarshal([]byte(input), &resp); err != nil {
-			slog.Error("[common.ai] GrabJsonOutput error again", "input", input, "error", err)
+			slog.Error("[goutils.ai] GrabJsonOutput error again", "input", input, "error", err)
 			return nil, err
 		}
 	}

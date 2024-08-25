@@ -91,17 +91,17 @@ func (s *Instant) RawRequestAzureOpenAI(ctx context.Context, messages []azopenai
 	case <-ctx.Done():
 		// Context was canceled or timed out
 		if errors.Is(ctx.Err(), context.Canceled) {
-			slog.Error("[common.ai] Azure Request canceled", "error", ctx.Err())
+			slog.Error("[goutils.ai] Azure Request canceled", "error", ctx.Err())
 			return "", fmt.Errorf("request canceled: %w", ctx.Err())
 		}
 		return "", fmt.Errorf("request failed: %w", ctx.Err())
 	case result := <-resultChan:
 		if result.err != nil {
 			if errors.Is(result.err, context.Canceled) {
-				slog.Error("[common.ai] Azure Request canceled", "error", result.err)
+				slog.Error("[goutils.ai] Azure Request canceled", "error", result.err)
 				return "", fmt.Errorf("request canceled: %w", result.err)
 			}
-			slog.Error("[common.ai] Azure Request error", "error", result.err)
+			slog.Error("[goutils.ai] Azure Request error", "error", result.err)
 			return "", result.err
 		}
 		return result.resp, nil

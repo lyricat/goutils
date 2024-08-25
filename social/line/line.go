@@ -29,7 +29,7 @@ type (
 func New(cfg Config) (*Client, error) {
 	decoded, err := base64.StdEncoding.DecodeString(cfg.PrivateKey)
 	if err != nil {
-		slog.Error("[goutils] failed to decode line private key", "error", err)
+		slog.Error("[goutils.line] failed to decode line private key", "error", err)
 		return nil, err
 	}
 	cfg.PrivateKey = string(decoded)
@@ -120,7 +120,7 @@ func (s *Client) ReplyTextMessage(replyToken, quoteToken string, text string) (*
 func (s *Client) GetContent(messageID string) ([]byte, error) {
 	resp, err := s.blobBot.GetMessageContent(messageID)
 	if err != nil {
-		slog.Error("[line] failed to get content", "error", err)
+		slog.Error("[goutils.line] failed to get content", "error", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -128,7 +128,7 @@ func (s *Client) GetContent(messageID string) ([]byte, error) {
 	// read the content as buffer
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("[line] failed to read content", "error", err)
+		slog.Error("[goutils.line] failed to read content", "error", err)
 		return nil, err
 	}
 
