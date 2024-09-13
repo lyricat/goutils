@@ -22,8 +22,10 @@ type (
 		cfg         Config
 		oauthConfig *oauth2.Config
 		rdb         *redis.Client
+		httpClient  *http.Client
 	}
 	Config struct {
+		BearerToken  string
 		ClientID     string
 		ClientSecret string
 		CallbackURL  string
@@ -59,6 +61,7 @@ func New(cfg Config, rdb *redis.Client) *Client {
 		cfg:         cfg,
 		oauthConfig: oauthConfig,
 		rdb:         rdb,
+		httpClient:  &http.Client{},
 	}
 }
 
