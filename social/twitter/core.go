@@ -1,13 +1,18 @@
 package twitter
 
+import "time"
+
 type (
-	ListMember struct {
+	User struct {
 		ID       string `json:"id"`
-		Username string `json:"username"`
 		Name     string `json:"name"`
+		Username string `json:"username"`
 	}
+)
+
+type (
 	ListMemberResponse struct {
-		Data []ListMember `json:"data"`
+		Data []User `json:"data"`
 	}
 )
 
@@ -54,11 +59,6 @@ type (
 		Type string `json:"type"`
 		ID   string `json:"id"`
 	}
-	TweetUser struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		Username string `json:"username"`
-	}
 	TweetObject struct {
 		ID              string `json:"id"`
 		Text            string `json:"text"`
@@ -71,11 +71,13 @@ type (
 		PublicMetrics TweetPublicMetrics `json:"public_metrics"`
 		// ReferencedTweets
 		ReferencedTweets TweetReferencedTweets `json:"referenced_tweets"`
+		// time
+		CreatedAt *time.Time `json:"created_at"`
 	}
 	TweetResponse struct {
 		Data     []TweetObject `json:"data"`
 		Includes struct {
-			Users  []TweetUser   `json:"users"`
+			Users  []User        `json:"users"`
 			Tweets []TweetObject `json:"tweets"`
 		} `json:"includes"`
 		Meta struct {
