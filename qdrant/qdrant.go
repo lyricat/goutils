@@ -15,10 +15,11 @@ import (
 
 type (
 	QdrantPoint struct {
-		ID      int64            `json:"id"`
-		Score   float32          `json:"score"`
-		Vector  []float32        `json:"vector"`
-		Payload map[string]int64 `json:"payload"`
+		ID      int64                `json:"id"`
+		UUID    string               `json:"uuid"`
+		Score   float32              `json:"score"`
+		Vector  []float32            `json:"vector"`
+		Payload map[string]*pb.Value `json:"payload"`
 	}
 
 	Config struct {
@@ -293,7 +294,7 @@ func (c *QdrantClient) SearchPointsWithFilter(ctx context.Context, params Search
 	return qpList, nil
 }
 
-func (c *QdrantClient) CreateCollections(ctx context.Context, params CreateCollectionParams) error {
+func (c *QdrantClient) CreateCollection(ctx context.Context, params CreateCollectionParams) error {
 	// Create new collection
 	var defaultSegmentNumber uint64 = 2
 	cols := []string{params.CollectionName}
@@ -355,24 +356,26 @@ func (c *QdrantClient) CreateCollections(ctx context.Context, params CreateColle
 
 func (qp *QdrantPoint) LoadFromRetrievedPoint(p *pb.RetrievedPoint) error {
 	qp.ID = int64(p.Id.GetNum())
+	qp.UUID = p.Id.GetUuid()
 	qp.Score = 0
 	qp.Vector = p.GetVectors().GetVector().GetData()
 	payload := p.GetPayload()
-	qp.Payload = make(map[string]int64)
+	qp.Payload = make(map[string]*pb.Value)
 	for k, v := range payload {
-		qp.Payload[k] = v.GetIntegerValue()
+		qp.Payload[k] = v
 	}
 	return nil
 }
 
 func (qp *QdrantPoint) LoadFromScoredPoint(p *pb.ScoredPoint) error {
 	qp.ID = int64(p.Id.GetNum())
+	qp.UUID = p.Id.GetUuid()
 	qp.Score = p.Score
 	qp.Vector = p.GetVectors().GetVector().GetData()
 	payload := p.GetPayload()
-	qp.Payload = make(map[string]int64)
+	qp.Payload = make(map[string]*pb.Value)
 	for k, v := range payload {
-		qp.Payload[k] = v.GetIntegerValue()
+		qp.Payload[k] = v
 	}
 	return nil
 }
