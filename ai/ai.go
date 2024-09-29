@@ -280,7 +280,7 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 	// try to parse the response
 	var resp map[string]any
 	if err := json.Unmarshal([]byte(input), &resp); err != nil {
-		slog.Error("[goutils.ai] GrabJsonOutput error", "input", input, "error", err)
+		slog.Warn("[goutils.ai] GrabJsonOutput error, let's try to extract the result", "input", input, "error", err)
 
 		// use regex to extract the json part
 		// it could be multiple lines
@@ -314,8 +314,15 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 }
 
 func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32, error) {
+	fmt.Printf("input: %v\n", input)
 	if s.cfg.Provider == "azure" {
-		return s.CreateEmbeddingAzureOpenAI(ctx, input)
+		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
+		fmt.Printf("vec: %v\n", vec)
+		if err != nil {
+			slog.Error("[goutils.ai] CreateEmbeddingAzureOpenAI error", "error", err)
+			return nil, err
+		}
+		return vec, nil
 	}
 	return nil, nil
 }

@@ -281,7 +281,7 @@ func (c *QdrantClient) SearchPointsWithFilter(ctx context.Context, params Search
 		WithPayload:    &pb.WithPayloadSelector{SelectorOptions: &pb.WithPayloadSelector_Enable{Enable: true}},
 	})
 	if err != nil {
-		slog.Error("Could not search points", "error", err)
+		slog.Error("could not search points", "error", err)
 	}
 
 	result := filteredSearchResult.GetResult()
