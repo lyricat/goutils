@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func (tr *TweetResponse) PrettyPrint() {
+func (tr *TweetsResponse) PrettyPrint() {
 	// print the tweets in Data. If the referenced tweet is present, find it from includes.Tweets and  print that as well
 	for _, tweet := range tr.Data {
 		fmt.Printf("- Tweet ID: %s\n", tweet.ID)
@@ -37,7 +37,7 @@ func (tr *TweetResponse) PrettyPrint() {
 }
 
 // GetTweetsFromList retrieves recent tweets from a given Twitter List
-func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, listID string, maxResults int, paginationToken string) (*TweetResponse, error) {
+func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, listID string, maxResults int, paginationToken string) (*TweetsResponse, error) {
 	url := fmt.Sprintf("https://api.x.com/2/lists/%s/tweets", listID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -75,7 +75,7 @@ func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, lis
 		return nil, err
 	}
 
-	var result TweetResponse
+	var result TweetsResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("error decoding response: %w", err)
 	}

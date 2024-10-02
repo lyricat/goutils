@@ -314,10 +314,8 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 }
 
 func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32, error) {
-	fmt.Printf("input: %v\n", input)
 	if s.cfg.Provider == "azure" {
 		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
-		fmt.Printf("vec: %v\n", vec)
 		if err != nil {
 			slog.Error("[goutils.ai] CreateEmbeddingAzureOpenAI error", "error", err)
 			return nil, err

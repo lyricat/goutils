@@ -59,6 +59,7 @@ type (
 		Type string `json:"type"`
 		ID   string `json:"id"`
 	}
+
 	TweetObject struct {
 		ID              string `json:"id"`
 		Text            string `json:"text"`
@@ -74,7 +75,8 @@ type (
 		// time
 		CreatedAt *time.Time `json:"created_at"`
 	}
-	TweetResponse struct {
+
+	TweetsResponse struct {
 		Data     []TweetObject `json:"data"`
 		Includes struct {
 			Users  []User        `json:"users"`
@@ -86,4 +88,36 @@ type (
 			NextToken     string `json:"next_token"`
 		} `json:"meta"`
 	}
+
+	TweetResponse struct {
+		Data     TweetObject `json:"data"`
+		Includes struct {
+			Users  []User        `json:"users"`
+			Tweets []TweetObject `json:"tweets"`
+		} `json:"includes"`
+	}
 )
+
+func (t *TweetObject) HasReferencedTweets() bool {
+	return len(t.ReferencedTweets) > 0
+}
+
+func (t *TweetsResponse) GetReferencedTweetByID(id string) *TweetObject {
+	for _, tweet := range t.Includes.Tweets {
+		if tweet.ID == id {
+			return &tweet
+		}
+	}
+	return nil
+}
+
+func (t *TweetObject) HasURL() bool {
+	return len(t.Entities.Urls) > 0
+}
+
+func (t *TweetObject) GetFirstURL() string {
+	if t.HasURL() {
+		return t.Entities.Urls[0].URL
+	}
+	return ""
+}
