@@ -4,9 +4,10 @@ import "time"
 
 type (
 	User struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		Username string `json:"username"`
+		ID              string `json:"id"`
+		Name            string `json:"name"`
+		Username        string `json:"username"`
+		ProfileImageURL string `json:"profile_image_url"`
 	}
 )
 
@@ -102,15 +103,6 @@ func (t *TweetObject) HasReferencedTweets() bool {
 	return len(t.ReferencedTweets) > 0
 }
 
-func (t *TweetsResponse) GetReferencedTweetByID(id string) *TweetObject {
-	for _, tweet := range t.Includes.Tweets {
-		if tweet.ID == id {
-			return &tweet
-		}
-	}
-	return nil
-}
-
 func (t *TweetObject) HasURL() bool {
 	return len(t.Entities.Urls) > 0
 }
@@ -120,4 +112,40 @@ func (t *TweetObject) GetFirstURL() string {
 		return t.Entities.Urls[0].URL
 	}
 	return ""
+}
+
+func (t *TweetsResponse) GetReferencedTweetByID(id string) *TweetObject {
+	for _, tweet := range t.Includes.Tweets {
+		if tweet.ID == id {
+			return &tweet
+		}
+	}
+	return nil
+}
+
+func (t *TweetsResponse) GetUserByID(id string) *User {
+	for _, user := range t.Includes.Users {
+		if user.ID == id {
+			return &user
+		}
+	}
+	return nil
+}
+
+func (t *TweetResponse) GetReferencedTweetByID(id string) *TweetObject {
+	for _, tweet := range t.Includes.Tweets {
+		if tweet.ID == id {
+			return &tweet
+		}
+	}
+	return nil
+}
+
+func (t *TweetResponse) GetUserByID(id string) *User {
+	for _, user := range t.Includes.Users {
+		if user.ID == id {
+			return &user
+		}
+	}
+	return nil
 }

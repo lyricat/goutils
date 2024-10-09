@@ -38,6 +38,7 @@ type (
 		CollectionName string
 		PointID        uint64
 		PointUUID      string
+		Selector       *pb.PointsSelector
 	}
 
 	GetPointsParams struct {
@@ -92,6 +93,27 @@ func (p *CommonParams) GetPbPointIDs() ([]*pb.PointId, error) {
 		return nil, fmt.Errorf("point ID or UUID is required")
 	}
 	return ids, nil
+}
+
+func (p *CommonParams) GetPbSelector() (*pb.PointsSelector, error) {
+	ids, err := p.GetPbPointIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	var selector *pb.PointsSelector
+	if len(ids) != 0 {
+		selector = &pb.PointsSelector{
+			PointsSelectorOneOf: &pb.PointsSelector_Points{
+				Points: &pb.PointsIdsList{
+					Ids: ids,
+				},
+			},
+		}
+	} else if p.Selector != nil {
+		selector = p.Selector
+	}
+	return selector, nil
 }
 
 func (p *CommonParams) GetPbPointID() (*pb.PointId, error) {
@@ -182,8 +204,9 @@ func (c *QdrantClient) UpsertPoints(ctx context.Context, params UpsertPointsPara
 	for k, v := range params.Payload {
 		switch v.Type {
 		case "int":
+			vint := int64(v.Value.(uint64))
 			payload[k] = &pb.Value{
-				Kind: &pb.Value_IntegerValue{IntegerValue: v.Value.(int64)},
+				Kind: &pb.Value_IntegerValue{IntegerValue: vint},
 			}
 		case "double":
 			payload[k] = &pb.Value{
@@ -229,7 +252,7 @@ func (c *QdrantClient) UpsertPoints(ctx context.Context, params UpsertPointsPara
 }
 
 func (c *QdrantClient) DeletePoints(ctx context.Context, params DeletePointsParams) error {
-	ids, err := params.GetPbPointIDs()
+	selector, err := params.GetPbSelector()
 	if err != nil {
 		return err
 	}
@@ -237,13 +260,7 @@ func (c *QdrantClient) DeletePoints(ctx context.Context, params DeletePointsPara
 	pointsClient := pb.NewPointsClient(c.Conn)
 	if _, err := pointsClient.Delete(ctx, &pb.DeletePoints{
 		CollectionName: params.CollectionName,
-		Points: &pb.PointsSelector{
-			PointsSelectorOneOf: &pb.PointsSelector_Points{
-				Points: &pb.PointsIdsList{
-					Ids: ids,
-				},
-			},
-		},
+		Points:         selector,
 	}); err != nil {
 		slog.Error("could not delete points", "error", err)
 	}
