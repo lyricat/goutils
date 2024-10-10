@@ -204,6 +204,11 @@ func (c *QdrantClient) UpsertPoints(ctx context.Context, params UpsertPointsPara
 	for k, v := range params.Payload {
 		switch v.Type {
 		case "int":
+			vint := int64(v.Value.(int64))
+			payload[k] = &pb.Value{
+				Kind: &pb.Value_IntegerValue{IntegerValue: vint},
+			}
+		case "uint":
 			vint := int64(v.Value.(uint64))
 			payload[k] = &pb.Value{
 				Kind: &pb.Value_IntegerValue{IntegerValue: vint},
