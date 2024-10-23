@@ -4,10 +4,17 @@ import "time"
 
 type (
 	User struct {
-		ID              string `json:"id"`
-		Name            string `json:"name"`
-		Username        string `json:"username"`
-		ProfileImageURL string `json:"profile_image_url"`
+		ID              string            `json:"id"`
+		Name            string            `json:"name"`
+		Username        string            `json:"username"`
+		ProfileImageURL string            `json:"profile_image_url"`
+		PublicMetrics   UserPublicMetrics `json:"public_metrics"`
+	}
+	UserPublicMetrics struct {
+		FollowersCount uint64 `json:"followers_count"`
+		FollowingCount uint64 `json:"following_count"`
+		TweetCount     uint64 `json:"tweet_count"`
+		ListedCount    uint64 `json:"listed_count"`
 	}
 )
 
@@ -49,12 +56,12 @@ type (
 		} `json:"cashtags"`
 	}
 	TweetPublicMetrics struct {
-		RetweetCount    int `json:"retweet_count"`
-		ReplyCount      int `json:"reply_count"`
-		LikeCount       int `json:"like_count"`
-		QuoteCount      int `json:"quote_count"`
-		BookmarkCount   int `json:"bookmark_count"`
-		ImpressionCount int `json:"impression_count"`
+		RetweetCount    int64 `json:"retweet_count"`
+		ReplyCount      int64 `json:"reply_count"`
+		LikeCount       int64 `json:"like_count"`
+		QuoteCount      int64 `json:"quote_count"`
+		BookmarkCount   int64 `json:"bookmark_count"`
+		ImpressionCount int64 `json:"impression_count"`
 	}
 	TweetReferencedTweets []struct {
 		Type string `json:"type"`

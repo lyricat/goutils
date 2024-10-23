@@ -88,16 +88,21 @@ func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID
 	url := fmt.Sprintf("https://api.x.com/2/lists/%s/members", listID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		slog.Error("error getting tweets from list", "error", err)
+		slog.Error("error getting members from list", "error", err)
 		return nil, err
 	}
+
+	q := req.URL.Query()
+	// includes links and quoted tweet and retweet information
+	q.Add("user.fields", "username,name,profile_image_url,public_metrics")
+	req.URL.RawQuery = q.Encode()
 
 	c.addAuthHeader(req, token)
 
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("error getting tweets from list", "error", err)
+		slog.Error("error getting members from list", "error", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -109,7 +114,7 @@ func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID
 	}
 
 	if err := c.catchError(resp, body); err != nil {
-		slog.Error("error getting tweets from list", "error", err)
+		slog.Error("error getting members from list", "error", err)
 		return nil, err
 	}
 

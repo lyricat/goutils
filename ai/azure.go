@@ -50,24 +50,34 @@ func (s *Instant) RawRequestAzureOpenAI(ctx context.Context, messages []azopenai
 				if choice.ContentFilterResults.Error != nil {
 					err = fmt.Errorf("content filter error: %v", *choice.ContentFilterResults.Error)
 				}
-				if *choice.ContentFilterResults.Hate.Filtered {
-					err = fmt.Errorf("content filter hate: %v", *choice.ContentFilterResults.Hate.Severity)
-				}
-				if *choice.ContentFilterResults.SelfHarm.Filtered {
-					err = fmt.Errorf("content filter self harm: %v", *choice.ContentFilterResults.SelfHarm.Severity)
-				}
-				if *choice.ContentFilterResults.Sexual.Filtered {
-					err = fmt.Errorf("content filter sexual: %v", *choice.ContentFilterResults.Sexual.Severity)
-				}
-				if *choice.ContentFilterResults.Violence.Filtered {
-					err = fmt.Errorf("content filter violence: %v", *choice.ContentFilterResults.Violence.Severity)
-				}
-				if err != nil {
-					resultChan <- struct {
-						resp string
-						err  error
-					}{resp: "", err: err}
-					return
+				if choice.ContentFilterResults != nil {
+					if choice.ContentFilterResults.Hate != nil {
+						if *(choice.ContentFilterResults.Hate.Filtered) {
+							err = fmt.Errorf("content filter hate: %v", *choice.ContentFilterResults.Hate.Severity)
+						}
+					}
+					if choice.ContentFilterResults.SelfHarm != nil {
+						if *choice.ContentFilterResults.SelfHarm.Filtered {
+							err = fmt.Errorf("content filter self harm: %v", *choice.ContentFilterResults.SelfHarm.Severity)
+						}
+					}
+					if choice.ContentFilterResults.Sexual != nil {
+						if *choice.ContentFilterResults.Sexual.Filtered {
+							err = fmt.Errorf("content filter sexual: %v", *choice.ContentFilterResults.Sexual.Severity)
+						}
+					}
+					if choice.ContentFilterResults.Violence != nil {
+						if *choice.ContentFilterResults.Violence.Filtered {
+							err = fmt.Errorf("content filter violence: %v", *choice.ContentFilterResults.Violence.Severity)
+						}
+					}
+					if err != nil {
+						resultChan <- struct {
+							resp string
+							err  error
+						}{resp: "", err: err}
+						return
+					}
 				}
 			}
 		}
