@@ -41,6 +41,7 @@ require (
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/qdrant/go-client v1.11.1
 	github.com/redis/go-redis/v9 v9.6.1
+	github.com/yuin/goldmark v1.7.8
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/text v0.17.0 // indirect

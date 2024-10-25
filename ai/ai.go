@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -16,6 +17,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go/service/bedrockruntime/bedrockruntimeiface"
 	"github.com/sashabaranov/go-openai"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 )
 
 type (
@@ -313,6 +318,30 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 	return outputs, nil
 }
 
+func (s *Instant) GrabJsonOutputFromMd(ctx context.Context, input string, ptrOutput interface{}) error {
+	if err := json.Unmarshal([]byte(input), ptrOutput); err != nil {
+		slog.Warn("[goutils.ai] GrabJsonOutputRaw error, let's try to extract the result", "input", input, "error", err)
+
+		input = strings.TrimSpace(input)
+
+		if strings.Contains(input, "```json") {
+			trimed, err := extractJSONFromMarkdown(input)
+			if err != nil {
+				slog.Warn("[goutils.ai] GrabJsonOutputFromMd error", "error", err)
+			} else {
+				input = trimed
+			}
+		}
+
+		if err := json.Unmarshal([]byte(input), ptrOutput); err != nil {
+			slog.Error("[goutils.ai] GrabJsonOutputFromMd error again", "input", input, "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32, error) {
 	if s.cfg.Provider == "azure" {
 		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
@@ -323,4 +352,48 @@ func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32,
 		return vec, nil
 	}
 	return nil, nil
+}
+
+func extractJSONFromMarkdown(markdownContent string) (string, error) {
+	md := goldmark.New(
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
+	)
+
+	fmt.Printf("markdownContent: %v\n", markdownContent)
+
+	// Parse the markdown content
+	reader := text.NewReader([]byte(markdownContent))
+	doc := md.Parser().Parse(reader)
+
+	jsonContents := make([]string, 0)
+	// Traverse the AST to find JSON code blocks
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		// Check if the node is a fenced code block
+		if codeBlock, ok := n.(*ast.FencedCodeBlock); ok {
+			// Get the language info
+			lang := string(codeBlock.Language(reader.Source()))
+			if lang == "json" {
+				// Extract the content inside the code block
+				content := codeBlock.Text(reader.Source())
+				// Convert to string
+				jsonContent := string(content)
+				// Append to the list of JSON contents
+				jsonContents = append(jsonContents, jsonContent)
+				// Continue walking to find more JSON blocks
+			}
+		}
+
+		return ast.WalkContinue, nil
+	})
+
+	if len(jsonContents) == 0 {
+		slog.Error("[goutils.ai] No JSON code block found in the markdown content.")
+	}
+	return strings.Join(jsonContents, "\n"), nil
 }
