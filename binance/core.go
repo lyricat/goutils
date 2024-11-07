@@ -2,6 +2,7 @@ package binance
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -77,24 +78,25 @@ func (t *Trade) Formalize() {
 	}
 }
 
-func (o *Order) PrettyPrint() {
-	fmt.Printf("Symbol: %s\n", o.Symbol)
-	fmt.Printf("Order ID: %d\n", o.OrderID)
-	fmt.Printf("Client Order ID: %s\n", o.ClientOrderID)
-	fmt.Printf("Price: %s\n", o.Price)
-	fmt.Printf("Original Quantity: %s\n", o.OrigQty)
-	fmt.Printf("Executed Quantity: %s\n", o.ExecuteQty)
-	fmt.Printf("Cumulative Quote Quantity: %s\n", o.CummulativeQuoteQty)
-	fmt.Printf("Status: %s\n", o.Status)
-	fmt.Printf("Time in Force: %s\n", o.TimeInForce)
-	fmt.Printf("Type: %s\n", o.Type)
-	fmt.Printf("Side: %s\n", o.Side)
-	fmt.Printf("Stop Price: %s\n", o.StopPrice)
-	fmt.Printf("Iceberg Quantity: %s\n", o.IcebergQty)
-	fmt.Printf("Time: %s\n", o.Time)
-	fmt.Printf("Update Time: %s\n", o.UpdateTime)
-	fmt.Printf("Is Working: %v\n", o.IsWorking)
-	fmt.Printf("Working Time: %s\n", o.WorkingTime)
-	fmt.Printf("Original Quote Order Quantity: %s\n", o.OrigQuoteOrderQty)
-
+func (o *Order) String() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Symbol: %s\n", o.Symbol))
+	b.WriteString(fmt.Sprintf("Order ID: %d\n", o.OrderID))
+	b.WriteString(fmt.Sprintf("Client Order ID: %s\n", o.ClientOrderID))
+	b.WriteString(fmt.Sprintf("Price: %s\n", o.Price))
+	b.WriteString(fmt.Sprintf("Original Quantity: %s\n", o.OrigQty))
+	b.WriteString(fmt.Sprintf("Executed Quantity: %s\n", o.ExecuteQty))
+	b.WriteString(fmt.Sprintf("Cumulative Quote Quantity: %s\n", o.CummulativeQuoteQty))
+	b.WriteString(fmt.Sprintf("Status: %s\n", o.Status))
+	b.WriteString(fmt.Sprintf("Time in Force: %s\n", o.TimeInForce))
+	b.WriteString(fmt.Sprintf("Type: %s\n", o.Type))
+	b.WriteString(fmt.Sprintf("Side: %s\n", o.Side))
+	b.WriteString(fmt.Sprintf("Stop Price: %s\n", o.StopPrice))
+	b.WriteString(fmt.Sprintf("Iceberg Quantity: %s\n", o.IcebergQty))
+	b.WriteString(fmt.Sprintf("Time: %s\n", o.Time))
+	b.WriteString(fmt.Sprintf("Update Time: %s\n", o.UpdateTime))
+	b.WriteString(fmt.Sprintf("Is Working: %v\n", o.IsWorking))
+	b.WriteString(fmt.Sprintf("Working Time: %s\n", o.WorkingTime))
+	b.WriteString(fmt.Sprintf("Original Quote Order Quantity: %s\n", o.OrigQuoteOrderQty))
+	return b.String()
 }
