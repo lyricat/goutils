@@ -59,6 +59,41 @@ type (
 	}
 )
 
+type (
+	PriceFilter struct {
+		FilterType string          `json:"filterType"`
+		MinPrice   decimal.Decimal `json:"minPrice"`
+		MaxPrice   decimal.Decimal `json:"maxPrice"`
+		TickSize   decimal.Decimal `json:"tickSize"`
+	}
+
+	LotSizeFilter struct {
+		FilterType string          `json:"filterType"`
+		MinQty     decimal.Decimal `json:"minQty"`
+		MaxQty     decimal.Decimal `json:"maxQty"`
+		StepSize   decimal.Decimal `json:"stepSize"`
+	}
+
+	MarketLotSizeFilter struct {
+		FilterType string          `json:"filterType"`
+		MinQty     decimal.Decimal `json:"minQty"`
+		MaxQty     decimal.Decimal `json:"maxQty"`
+		StepSize   decimal.Decimal `json:"stepSize"`
+	}
+
+	Pair struct {
+		Symbol              string              `json:"symbol"`
+		BaseAsset           string              `json:"baseAsset"`
+		BaseAssetPrecision  int                 `json:"baseAssetPrecision"`
+		QuoteAsset          string              `json:"quoteAsset"`
+		QuoteAssetPrecision int                 `json:"quoteAssetPrecision"`
+		QuotePrecision      int                 `json:"quotePrecision"`
+		PriceFilter         PriceFilter         `json:"priceFilter"`
+		LotSizeFilter       LotSizeFilter       `json:"lotSizeFilter"`
+		MarketLotSizeFilter MarketLotSizeFilter `json:"marketLotSizeFilter"`
+	}
+)
+
 func (o *Order) Formalize() {
 	// convert timestamps into time.Time
 	if o.UnixTime > 0 {
