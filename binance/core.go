@@ -8,6 +8,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const (
+	OrderSideBuy  = "BUY"
+	OrderSideSell = "SELL"
+
+	OrderTypeLimit  = "LIMIT"
+	OrderTypeMarket = "MARKET"
+)
+
 type (
 	Order struct {
 		Symbol              string          `json:"symbol"`
