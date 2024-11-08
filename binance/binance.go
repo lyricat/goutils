@@ -14,6 +14,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -111,6 +113,95 @@ func (c *Binance) GetTradesByOrderID(ctx context.Context, symbol, orderID string
 	return trades, nil
 }
 
+type PutSpotOrderParams struct {
+	NewClientOrderID string
+	Symbol           string
+	Side             string          // BUY, SELL
+	Type             string          // MARKET, LIMIT
+	Price            decimal.Decimal // only used for LIMIT
+	Quantity         decimal.Decimal
+	TimeInForce      string // GTC, IOC, FOK
+	NewOrderRespType string // ACK, RESULT, FULL
+}
+
+func (c *Binance) PutSpotOrder(ctx context.Context, params PutSpotOrderParams) (*Order, error) {
+	values := url.Values{}
+	values.Set("symbol", params.Symbol)
+	values.Set("side", params.Side)
+	values.Set("type", params.Type)
+	values.Set("quantity", params.Quantity.String())
+
+	if params.NewClientOrderID != "" {
+		values.Set("newClientOrderId", params.NewClientOrderID)
+	}
+
+	if params.Type == "LIMIT" {
+		values.Set("price", params.Price.String())
+	}
+
+	if params.TimeInForce != "" {
+		values.Set("timeInForce", params.TimeInForce)
+	}
+
+	if params.NewOrderRespType != "" {
+		values.Set("newOrderRespType", params.NewOrderRespType)
+	}
+
+	resp, err := c.request(ctx, "PUT", "/api/v3/order", values)
+	if err != nil {
+		return nil, fmt.Errorf("failed to put spot order: %w", err)
+	}
+
+	var order Order
+	if err := json.Unmarshal(resp, &order); err != nil {
+		return nil, fmt.Errorf("failed to parse order: %w", err)
+	}
+
+	order.Formalize()
+	return &order, nil
+}
+
+func (c *Binance) CancelSpotOrder(ctx context.Context, symbol string, orderID int64) (*Order, error) {
+	params := url.Values{
+		"symbol":  {symbol},
+		"orderId": {strconv.FormatInt(orderID, 10)},
+	}
+	resp, err := c.request(ctx, "DELETE", "/api/v3/order", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cancel spot order: %w", err)
+	}
+
+	var order Order
+	if err := json.Unmarshal(resp, &order); err != nil {
+		return nil, fmt.Errorf("failed to parse order: %w", err)
+	}
+
+	order.Formalize()
+	return &order, nil
+}
+
+func (c *Binance) CancelAllSpotOrders(ctx context.Context, symbol string) ([]*Order, error) {
+	params := url.Values{
+		"symbol": {symbol},
+	}
+
+	resp, err := c.request(ctx, "DELETE", "/api/v3/openOrders", params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cancel all spot orders: %w", err)
+	}
+
+	var orders []*Order
+	if err := json.Unmarshal(resp, &orders); err != nil {
+		return nil, fmt.Errorf("failed to parse orders: %w", err)
+	}
+
+	for _, o := range orders {
+		o.Formalize()
+	}
+
+	return orders, nil
+}
+
 func (c *Binance) request(ctx context.Context, method, endpoint string, params url.Values) ([]byte, error) {
 	header := http.Header{}
 	header.Set("X-MBX-APIKEY", c.APIKey)
@@ -121,7 +212,7 @@ func (c *Binance) request(ctx context.Context, method, endpoint string, params u
 	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	query.Add("timestamp", timestamp)
 
-	if method == "GET" {
+	if method == "GET" || method == "DELETE" {
 		// merge params
 		for k, v := range params {
 			query[k] = v
