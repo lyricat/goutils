@@ -202,6 +202,37 @@ func (c *Binance) CancelAllSpotOrders(ctx context.Context, symbol string) ([]*Or
 	return orders, nil
 }
 
+
+
+func get(ctx context.Context, endpoint string, params url.Values) ([]byte, error) {
+	reqURL := fmt.Sprintf("%s%s", baseURL, endpoint)
+	if rawQuery := params.Encode(); rawQuery != "" {
+		reqURL += "?" + rawQuery
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(string(body))
+	}
+
+	return body, nil
+}
+
 func (c *Binance) request(ctx context.Context, method, endpoint string, params url.Values) ([]byte, error) {
 	header := http.Header{}
 	header.Set("X-MBX-APIKEY", c.APIKey)
