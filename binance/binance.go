@@ -69,10 +69,10 @@ func (c *Binance) GetLatestOrders(ctx context.Context, symbol string, limit int)
 }
 
 // GetOrderInfoByID retrieves specific order information by order ID for a symbol.
-func (c *Binance) GetOrderInfoByID(ctx context.Context, symbol, orderID string) (*Order, error) {
+func (c *Binance) GetOrderInfoByID(ctx context.Context, symbol string, orderID int64) (*Order, error) {
 	params := url.Values{
 		"symbol":  {symbol},
-		"orderId": {orderID},
+		"orderId": {strconv.FormatInt(orderID, 10)},
 	}
 	body, err := c.request(ctx, "GET", "/api/v3/order", params)
 	if err != nil {
@@ -147,7 +147,7 @@ func (c *Binance) PutSpotOrder(ctx context.Context, params PutSpotOrderParams) (
 		values.Set("newOrderRespType", params.NewOrderRespType)
 	}
 
-	resp, err := c.request(ctx, "PUT", "/api/v3/order", values)
+	resp, err := c.request(ctx, "POST", "/api/v3/order", values)
 	if err != nil {
 		return nil, fmt.Errorf("failed to put spot order: %w", err)
 	}
@@ -201,8 +201,6 @@ func (c *Binance) CancelAllSpotOrders(ctx context.Context, symbol string) ([]*Or
 
 	return orders, nil
 }
-
-
 
 func get(ctx context.Context, endpoint string, params url.Values) ([]byte, error) {
 	reqURL := fmt.Sprintf("%s%s", baseURL, endpoint)
