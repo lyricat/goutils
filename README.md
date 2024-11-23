@@ -22,6 +22,63 @@ import "github.com/lyricat/goutils"
 	}
 ```
 
+#### Insert
+
+```go
+import (
+  lqdrant "github.com/lyricat/goutils/qdrant"
+)
+
+func UpsertToQdrant(ctx context.Context) error {
+	text := "The grapes are innocent, please do not ban the planting of grapes because eating grapes can lead to death."
+	params := lqdrant.UpsertPointsParams{}
+	params.CollectionName = "QdrantCollectionName"
+	input := []string{text}
+	vec, err := client.CreateEmbeddingAzureOpenAI(ctx, input)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	expiry := now.Add(24 * time.Hour)
+	params.PointUUID = uuid.MD5(...)
+	params.Vector = vec
+	params.Payload = map[string]qdrant.UpsertPointPayloadItem{
+		"text": {Type: "text", Value: text},
+	}
+	if err := qd.UpsertPoints(ctx, params); err != nil {
+		return err
+	}
+
+	return nil
+}
+```
+
+#### Delete
+
+```go
+func (tc *TweetCache) DeleteExpiredFromQdrant(ctx context.Context) error {
+	currentTime := time.Now()
+	unixNow := float64(currentTime.Unix())
+	filter := &qdrant.Filter{
+		Must: []*qdrant.Condition{
+			{
+				ConditionOneOf: &qdrant.Condition_Field{
+					Field: &qdrant.FieldCondition{
+						// ...,
+					},
+				},
+			},
+		},
+	}
+
+	params := lqdrant.DeletePointsParams{}
+	params.CollectionName = "QdrantCollectionName"
+	params.Selector = qdrant.NewPointsSelectorFilter(filter)
+
+	return tc.qd.DeletePoints(ctx, params)
+}
+```
+
 ### AI
 
 The `ai` package provides useful functions for AI related tasks, and it supports multiple AI providers:
@@ -34,13 +91,13 @@ The `ai` package provides useful functions for AI related tasks, and it supports
 import "github.com/lyricat/goutils/ai"
 
 	client := ai.New(ai.Config{
-	AzureOpenAIApiKey:                "Azure.OpenAI.APIKey",
-	AzureOpenAIEndpoint:              "Azure.OpenAI.Endpoint",
-	AzureOpenAIGptDeploymentID:       "Azure.OpenAI.GptDeploymentID",
-	AzureOpenAIEmbeddingDeploymentID: "Azure.OpenAI.EmbeddingDeploymentID",
-	Provider:                         "azure",
-	Debug:                            false,
-})
+		AzureOpenAIApiKey:                "Azure.OpenAI.APIKey",
+		AzureOpenAIEndpoint:              "Azure.OpenAI.Endpoint",
+		AzureOpenAIGptDeploymentID:       "Azure.OpenAI.GptDeploymentID",
+		AzureOpenAIEmbeddingDeploymentID: "Azure.OpenAI.EmbeddingDeploymentID",
+		Provider:                         "azure",
+		Debug:                            false,
+	})
 ```
 
 #### One time API call for JSON response
@@ -109,10 +166,10 @@ Do not provide any explanations or text apart from the translation result.
 
 #### Get Text Embedding
 
-> this function is only available for Azure OpenAI and OpenAI.
+> this function is only available for Azure OpenAI.
 
 ```go
-	vector, err := a.aiInst.GetEmbeddings(ctx, []string{content})
+	vector, err := a.aiInst.CreateEmbeddingAzureOpenAI(ctx, []string{content})
 	if err != nil {
 		slog.Error("failed to get embeddings", "error", err)
 	}
@@ -125,7 +182,7 @@ import 	"github.com/lyricat/goutils/qdrant"
 
   // ...
 	params := qdrant.SearchPointsParams{}
-	params.CollectionName = QdrantCollectionName
+	params.CollectionName = "QdrantCollectionName"
 	params.Vector = vector
 	params.TopK = uint64(limit)
 	searchResult, err := qd.SearchPointsWithFilter(ctx, params)
