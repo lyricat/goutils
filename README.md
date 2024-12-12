@@ -90,13 +90,33 @@ The `ai` package provides useful functions for AI related tasks, and it supports
 ```go
 import "github.com/lyricat/goutils/ai"
 
-	client := ai.New(ai.Config{
-		AzureOpenAIApiKey:                "Azure.OpenAI.APIKey",
-		AzureOpenAIEndpoint:              "Azure.OpenAI.Endpoint",
-		AzureOpenAIGptDeploymentID:       "Azure.OpenAI.GptDeploymentID",
-		AzureOpenAIEmbeddingDeploymentID: "Azure.OpenAI.EmbeddingDeploymentID",
+	clientAzure := ai.New(ai.Config{
+		AzureOpenAIApiKey:                "...",
+		AzureOpenAIEndpoint:              "https://abc.openai.azure.com/",
+		AzureOpenAIGptDeploymentID:       "gpt-4o-mini-0718",
+		AzureOpenAIEmbeddingDeploymentID: "text-embedding-3-small-latest",
 		Provider:                         "azure",
-		Debug:                            false,
+
+		Debug: true,
+	})
+
+	clientOpenAI := ai.New(ai.Config{
+		OpenAIGptModel:       "gpt-4o-mini-2024-07-18",
+		OpenAIEmbeddingModel: "text-embedding-3-small",
+
+		OpenAIApiKey: "sk-...",
+		Provider:     "openai",
+		Debug:        true,
+	})
+
+	clientBedrock := ai.New(ai.Config{
+		AwsKey:    "...",
+		AwsSecret: "...",
+
+		AwsBedrockModelArn:          "arn:aws:...",
+		AwsBedrockEmbeddingModelArn: "arn:aws:...",
+		Provider:                    "bedrock",
+		Debug:                       true,
 	})
 ```
 
@@ -166,10 +186,8 @@ Do not provide any explanations or text apart from the translation result.
 
 #### Get Text Embedding
 
-> this function is only available for Azure OpenAI.
-
 ```go
-	vector, err := a.aiInst.CreateEmbeddingAzureOpenAI(ctx, []string{content})
+	vector, err := a.client.GetEmbeddings(ctx, []string{content})
 	if err != nil {
 		slog.Error("failed to get embeddings", "error", err)
 	}
