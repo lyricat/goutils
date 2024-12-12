@@ -123,3 +123,46 @@ func (s *Instant) RawRequestAWSBedrockClaude(ctx context.Context, messages []Bed
 		return result.resp, nil
 	}
 }
+
+func (s *Instant) CreateEmbeddingBedrock(ctx context.Context, input []string) ([]float32, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
+	// Prepare request payload for Cohere embed model
+	payload := map[string]interface{}{
+		"texts":           input,
+		"input_type":      "search_document",
+		"embedding_types": []string{"float"},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		slog.Error("[goutils.ai] CreateEmbeddingBedrock marshal error", "error", err)
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	resp, err := s.bedrockClient.InvokeModelWithContext(ctx, &bedrockruntime.InvokeModelInput{
+		ModelId:     aws.String("cohere.embed-english-v3"),
+		Body:        bodyBytes,
+		Accept:      aws.String("application/json"),
+		ContentType: aws.String("application/json"),
+	})
+	if err != nil {
+		slog.Error("[goutils.ai] CreateEmbeddingBedrock error", "error", err)
+		return nil, err
+	}
+
+	var result struct {
+		Embeddings [][]float32 `json:"embeddings"`
+	}
+	if err := json.Unmarshal(resp.Body, &result); err != nil {
+		slog.Error("[goutils.ai] CreateEmbeddingBedrock unmarshal error", "error", err)
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if len(result.Embeddings) > 0 {
+		return result.Embeddings[0], nil
+	}
+
+	return nil, nil
+}
