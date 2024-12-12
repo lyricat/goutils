@@ -73,6 +73,12 @@ type (
 	}
 )
 
+const (
+	ProviderAzure   = "azure"
+	ProviderOpenAI  = "openai"
+	ProviderBedrock = "bedrock"
+)
+
 func (m GeneralChatCompletionMessage) Pretty() string {
 	return fmt.Sprintf("{ Role: '%s', Content: '%s' }", m.Role, m.Content)
 }
@@ -126,7 +132,8 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 	var ret string
 	var err error
 
-	if s.cfg.Provider == "openai" {
+	switch s.cfg.Provider {
+	case ProviderOpenAI:
 		_messages := make([]openai.ChatCompletionMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, openai.ChatCompletionMessage{
@@ -136,7 +143,7 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 		}
 		ret, err = s.RawRequestOpenAI(ctx, _messages)
 
-	} else if s.cfg.Provider == "azure" {
+	case ProviderAzure:
 		_messages := make([]azopenai.ChatRequestMessageClassification, 0, len(messages))
 		for _, message := range messages {
 			if message.Role == openai.ChatMessageRoleUser {
@@ -150,7 +157,8 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 			}
 		}
 		ret, err = s.RawRequestAzureOpenAI(ctx, _messages)
-	} else if s.cfg.Provider == "bedrock" {
+
+	case ProviderBedrock:
 		_messages := make([]BedRockClaudeChatMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, BedRockClaudeChatMessage{
@@ -164,7 +172,11 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 			})
 		}
 		ret, err = s.RawRequestAWSBedrockClaude(ctx, _messages)
+
+	default:
+		return "", fmt.Errorf("provider %s not supported", s.cfg.Provider)
 	}
+
 	if err != nil {
 		return "", err
 	}
@@ -343,15 +355,21 @@ func (s *Instant) GrabJsonOutputFromMd(ctx context.Context, input string, ptrOut
 }
 
 func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32, error) {
-	if s.cfg.Provider == "azure" {
+	switch s.cfg.Provider {
+	case ProviderAzure:
 		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
 		if err != nil {
 			slog.Error("[goutils.ai] CreateEmbeddingAzureOpenAI error", "error", err)
 			return nil, err
 		}
 		return vec, nil
+	case ProviderOpenAI:
+		return s.CreateEmbeddingOpenAI(ctx, input)
+	case ProviderBedrock:
+		return s.CreateEmbeddingBedrock(ctx, input)
+	default:
+		return nil, fmt.Errorf("provider %s not supported for embeddings", s.cfg.Provider)
 	}
-	return nil, nil
 }
 
 func extractJSONFromMarkdown(markdownContent string) (string, error) {

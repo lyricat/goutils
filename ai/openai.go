@@ -69,3 +69,28 @@ func (s *Instant) RawRequestOpenAI(ctx context.Context, messages []openai.ChatCo
 		return result.resp, nil
 	}
 }
+
+func (s *Instant) CreateEmbeddingOpenAI(ctx context.Context, input []string) ([]float32, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
+	resp, err := s.openaiClient.CreateEmbeddings(ctx, openai.EmbeddingRequest{
+		Input: input,
+		Model: "text-embedding-ada-002",
+	})
+	if err != nil {
+		slog.Error("[goutils.ai] CreateEmbeddingOpenAI error", "error", err)
+		return nil, err
+	}
+
+	if len(resp.Data) > 0 {
+		// Convert []float64 to []float32 to match Azure format
+		embeddings := make([]float32, len(resp.Data[0].Embedding))
+		for i, v := range resp.Data[0].Embedding {
+			embeddings[i] = float32(v)
+		}
+		return embeddings, nil
+	}
+
+	return nil, nil
+}
