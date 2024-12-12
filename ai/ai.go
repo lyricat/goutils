@@ -10,7 +10,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/aws/aws-sdk-go/aws"
 	AwsCre "github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -49,7 +48,9 @@ type (
 
 	Config struct {
 		// openai
-		OpenAIApiKey string
+		OpenAIApiKey         string
+		OpenAIGptModel       string
+		OpenAIEmbeddingModel string
 
 		// azure openai
 		AzureOpenAIApiKey                string
@@ -58,9 +59,10 @@ type (
 		AzureOpenAIEmbeddingDeploymentID string
 
 		// aws bedrock
-		AwsKey             string
-		AwsSecret          string
-		AwsBedrockModelArn string
+		AwsKey                      string
+		AwsSecret                   string
+		AwsBedrockModelArn          string
+		AwsBedrockEmbeddingModelArn string
 
 		Provider string
 
@@ -152,7 +154,7 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 				})
 			} else if message.Role == openai.ChatMessageRoleAssistant {
 				_messages = append(_messages, &azopenai.ChatRequestAssistantMessage{
-					Content: to.Ptr(message.Content),
+					Content: azopenai.NewChatRequestAssistantMessageContent(message.Content),
 				})
 			}
 		}

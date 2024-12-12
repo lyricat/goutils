@@ -142,7 +142,7 @@ func (s *Instant) CreateEmbeddingBedrock(ctx context.Context, input []string) ([
 	}
 
 	resp, err := s.bedrockClient.InvokeModelWithContext(ctx, &bedrockruntime.InvokeModelInput{
-		ModelId:     aws.String("cohere.embed-english-v3"),
+		ModelId:     aws.String(s.cfg.AwsBedrockEmbeddingModelArn),
 		Body:        bodyBytes,
 		Accept:      aws.String("application/json"),
 		ContentType: aws.String("application/json"),
