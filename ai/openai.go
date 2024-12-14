@@ -23,7 +23,7 @@ func (s *Instant) RawRequestOpenAI(ctx context.Context, messages []openai.ChatCo
 		resp, err := s.openaiClient.CreateChatCompletion(
 			ctx,
 			openai.ChatCompletionRequest{
-				Model:    openai.GPT4oMini20240718,
+				Model:    s.cfg.OpenAIGptModel,
 				Messages: messages,
 			},
 		)
@@ -76,7 +76,7 @@ func (s *Instant) CreateEmbeddingOpenAI(ctx context.Context, input []string) ([]
 
 	resp, err := s.openaiClient.CreateEmbeddings(ctx, openai.EmbeddingRequest{
 		Input: input,
-		Model: "text-embedding-ada-002",
+		Model: openai.EmbeddingModel(s.cfg.OpenAIEmbeddingModel),
 	})
 	if err != nil {
 		slog.Error("[goutils.ai] CreateEmbeddingOpenAI error", "error", err)
