@@ -69,7 +69,6 @@ func (m *Model) IsSpam(input []string) (bool, float64) {
 	// Calculate likelihood for each character
 	for _, r := range input {
 		word := r
-		fmt.Printf("word: %v\n", word)
 		if prob, exists := m.WordProbs[word]; exists {
 			// Use Laplace smoothing to avoid zero probabilities
 			smoothedSpamProb := (prob + 1) / (float64(m.SpamCount) + 2)
@@ -84,10 +83,6 @@ func (m *Model) IsSpam(input []string) (bool, float64) {
 	spamExp := math.Exp(spamProb)
 	hamExp := math.Exp(hamProb)
 	probability := spamExp / (spamExp + hamExp)
-
-	fmt.Printf("spamExp: %v\n", spamExp)
-	fmt.Printf("hamExp: %v\n", hamExp)
-	fmt.Printf("probability: %v\n", probability)
 
 	return probability > 0.5, probability
 }
