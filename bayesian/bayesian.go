@@ -25,14 +25,13 @@ func NewModel() *Model {
 }
 
 // Train trains the model with the given input and classification
-func (m *Model) Train(input []rune, isSpam bool) {
+func (m *Model) Train(input []string, isSpam bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Convert runes to words (using runes as individual tokens for char array input)
 	words := make(map[string]bool)
 	for _, r := range input {
-		words[string(r)] = true
+		words[r] = true
 	}
 
 	// Update counts
@@ -50,10 +49,11 @@ func (m *Model) Train(input []rune, isSpam bool) {
 			m.WordProbs[word] = (m.WordProbs[word] * float64(m.SpamCount)) / float64(m.SpamCount+1)
 		}
 	}
+
 }
 
 // IsSpam checks if the input is spam and returns the probability
-func (m *Model) IsSpam(input []rune) (bool, float64) {
+func (m *Model) IsSpam(input []string) (bool, float64) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -68,7 +68,8 @@ func (m *Model) IsSpam(input []rune) (bool, float64) {
 
 	// Calculate likelihood for each character
 	for _, r := range input {
-		word := string(r)
+		word := r
+		fmt.Printf("word: %v\n", word)
 		if prob, exists := m.WordProbs[word]; exists {
 			// Use Laplace smoothing to avoid zero probabilities
 			smoothedSpamProb := (prob + 1) / (float64(m.SpamCount) + 2)
@@ -83,6 +84,10 @@ func (m *Model) IsSpam(input []rune) (bool, float64) {
 	spamExp := math.Exp(spamProb)
 	hamExp := math.Exp(hamProb)
 	probability := spamExp / (spamExp + hamExp)
+
+	fmt.Printf("spamExp: %v\n", spamExp)
+	fmt.Printf("hamExp: %v\n", hamExp)
+	fmt.Printf("probability: %v\n", probability)
 
 	return probability > 0.5, probability
 }
@@ -106,7 +111,7 @@ type Explanation struct {
 }
 
 // Explain provides a detailed explanation of why the input was classified as spam or not
-func (m *Model) Explain(input []rune) (*Explanation, error) {
+func (m *Model) Explain(input []string) (*Explanation, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

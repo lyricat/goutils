@@ -19,41 +19,37 @@ func TestTrainAndIsSpam(t *testing.T) {
 	model := NewModel()
 
 	// Train with spam examples
-	spamInputs := [][]rune{
-		[]rune("$$$"),
-		[]rune("WIN"),
-		[]rune("CASH"),
+	spamInputs := []string{
+		"$$$",
+		"WIN",
+		"CASH",
 	}
-	for _, input := range spamInputs {
-		model.Train(input, true)
-	}
+	model.Train(spamInputs, true)
 
 	// Train with ham examples
-	hamInputs := [][]rune{
-		[]rune("hello"),
-		[]rune("meeting"),
-		[]rune("report"),
+	hamInputs := []string{
+		"hello",
+		"meeting",
+		"report",
 	}
-	for _, input := range hamInputs {
-		model.Train(input, false)
-	}
+	model.Train(hamInputs, false)
 
 	// Test spam detection
 	testCases := []struct {
-		input    []rune
+		input    []string
 		wantSpam bool
 	}{
-		{[]rune("$WIN$"), true},
-		{[]rune("hello meeting"), false},
+		{[]string{"WIN", "THE", "REWARDS!"}, true},
+		{[]string{"hello", "meeting"}, false},
 	}
 
 	for _, tc := range testCases {
 		isSpam, prob := model.IsSpam(tc.input)
 		if isSpam != tc.wantSpam {
-			t.Errorf("IsSpam(%v) = %v, want %v (probability: %v)", string(tc.input), isSpam, tc.wantSpam, prob)
+			t.Errorf("IsSpam(%v) = %v, want %v (probability: %v)", tc.input, isSpam, tc.wantSpam, prob)
 		}
 		if prob < 0.0 || prob > 1.0 {
-			t.Errorf("Invalid probability %v for input %v", prob, string(tc.input))
+			t.Errorf("Invalid probability %v for input %v", prob, tc.input)
 		}
 	}
 }
@@ -62,8 +58,8 @@ func TestSaveAndLoadModel(t *testing.T) {
 	model := NewModel()
 
 	// Train the model
-	model.Train([]rune("$$$"), true)
-	model.Train([]rune("hello"), false)
+	model.Train([]string{"$$$"}, true)
+	model.Train([]string{"hello"}, false)
 
 	// Save the model
 	tmpFile := "test_model.gob"
@@ -92,7 +88,7 @@ func TestSaveAndLoadModel(t *testing.T) {
 	}
 
 	// Verify loaded model produces same results
-	input := []rune("test$$$")
+	input := []string{"test $$$"}
 	origIsSpam, origProb := model.IsSpam(input)
 	loadedIsSpam, loadedProb := loadedModel.IsSpam(input)
 
@@ -106,30 +102,26 @@ func TestExplain(t *testing.T) {
 	model := NewModel()
 
 	// Train with spam examples
-	spamInputs := [][]rune{
-		[]rune("$$$"),
-		[]rune("WIN"),
-		[]rune("CASH"),
+	spamInputs := []string{
+		"$$$",
+		"WIN",
+		"CASH",
 	}
-	for _, input := range spamInputs {
-		model.Train(input, true)
-	}
+	model.Train(spamInputs, true)
 
 	// Train with ham examples
-	hamInputs := [][]rune{
-		[]rune("hello"),
-		[]rune("meeting"),
-		[]rune("report"),
+	hamInputs := []string{
+		"hello",
+		"meeting",
+		"report",
 	}
-	for _, input := range hamInputs {
-		model.Train(input, false)
-	}
+	model.Train(hamInputs, false)
 
 	// Test explanation for mixed input (containing both spam and ham characteristics)
-	input := []rune("hello$meeting")
+	input := []string{"hello", "$$$", "meeting"}
 	explanation, err := model.Explain(input)
 	if err != nil {
-		t.Fatalf("Explain(%v) returned error: %v", string(input), err)
+		t.Fatalf("Explain(%v) returned error: %v", input, err)
 	}
 
 	// Verify basic explanation properties
