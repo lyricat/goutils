@@ -55,26 +55,32 @@ func (m *Model) IsSpam(input []rune) (bool, float64) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	// If we haven't seen any training data, return neutral probability
 	if m.SpamCount == 0 || m.HamCount == 0 {
 		return false, 0.5
 	}
 
-	// Calculate spam probability using naive Bayes
+	// Calculate prior probabilities
 	spamProb := math.Log(float64(m.SpamCount) / float64(m.SpamCount+m.HamCount))
 	hamProb := math.Log(float64(m.HamCount) / float64(m.SpamCount+m.HamCount))
 
+	// Calculate likelihood for each character
 	for _, r := range input {
 		word := string(r)
 		if prob, exists := m.WordProbs[word]; exists {
-			spamProb += math.Log(prob)
-			hamProb += math.Log(1 - prob)
+			// Use Laplace smoothing to avoid zero probabilities
+			smoothedSpamProb := (prob + 1) / (float64(m.SpamCount) + 2)
+			smoothedHamProb := ((1 - prob) + 1) / (float64(m.HamCount) + 2)
+
+			spamProb += math.Log(smoothedSpamProb)
+			hamProb += math.Log(smoothedHamProb)
 		}
 	}
 
-	// Convert log probabilities to probability
-	spamProb = math.Exp(spamProb)
-	hamProb = math.Exp(hamProb)
-	probability := spamProb / (spamProb + hamProb)
+	// Convert log probabilities back to probabilities
+	spamExp := math.Exp(spamProb)
+	hamExp := math.Exp(hamProb)
+	probability := spamExp / (spamExp + hamExp)
 
 	return probability > 0.5, probability
 }
