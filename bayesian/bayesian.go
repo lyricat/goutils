@@ -2,8 +2,10 @@ package bayesian
 
 import (
 	"encoding/gob"
+	"fmt"
 	"math"
 	"os"
+	"sort"
 	"sync"
 )
 
@@ -83,6 +85,108 @@ func (m *Model) IsSpam(input []rune) (bool, float64) {
 	probability := spamExp / (spamExp + hamExp)
 
 	return probability > 0.5, probability
+}
+
+// ExplanationDetail contains the probability details for a single character
+type ExplanationDetail struct {
+	Char            string  // The character being analyzed
+	SpamProbability float64 // Probability of this character appearing in spam
+	Contribution    float64 // How much this character contributed to the final score
+}
+
+// Explanation contains the detailed explanation of why input was classified as spam or not
+type Explanation struct {
+	IsSpam            bool                // Final classification
+	Probability       float64             // Overall spam probability
+	PriorSpamProb     float64             // Prior probability of spam
+	PriorHamProb      float64             // Prior probability of ham
+	Details           []ExplanationDetail // Per-character probability details
+	TopSpamIndicators []string            // Characters that most strongly indicate spam
+	TopHamIndicators  []string            // Characters that most strongly indicate ham
+}
+
+// Explain provides a detailed explanation of why the input was classified as spam or not
+func (m *Model) Explain(input []rune) (*Explanation, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	explanation := &Explanation{}
+
+	// If we haven't seen any training data, return early with an explanation
+	if m.SpamCount == 0 || m.HamCount == 0 {
+		return &Explanation{
+			IsSpam:      false,
+			Probability: 0.5,
+			Details:     []ExplanationDetail{},
+		}, nil
+	}
+
+	// Calculate prior probabilities
+	priorSpam := float64(m.SpamCount) / float64(m.SpamCount+m.HamCount)
+	priorHam := float64(m.HamCount) / float64(m.SpamCount+m.HamCount)
+
+	explanation.PriorSpamProb = priorSpam
+	explanation.PriorHamProb = priorHam
+
+	// Calculate log probabilities
+	spamProb := math.Log(priorSpam)
+	hamProb := math.Log(priorHam)
+
+	// Track character contributions
+	var details []ExplanationDetail
+
+	// Calculate likelihood for each character
+	for _, r := range input {
+		word := string(r)
+		if prob, exists := m.WordProbs[word]; exists {
+			// Use Laplace smoothing
+			smoothedSpamProb := (prob + 1) / (float64(m.SpamCount) + 2)
+			smoothedHamProb := ((1 - prob) + 1) / (float64(m.HamCount) + 2)
+
+			// Calculate log probabilities
+			charSpamContrib := math.Log(smoothedSpamProb)
+			charHamContrib := math.Log(smoothedHamProb)
+
+			spamProb += charSpamContrib
+			hamProb += charHamContrib
+
+			// Store character details
+			details = append(details, ExplanationDetail{
+				Char:            word,
+				SpamProbability: smoothedSpamProb,
+				Contribution:    charSpamContrib - charHamContrib,
+			})
+		}
+	}
+
+	// Convert log probabilities back to probabilities
+	spamExp := math.Exp(spamProb)
+	hamExp := math.Exp(hamProb)
+	probability := spamExp / (spamExp + hamExp)
+
+	// Sort details by contribution to find top indicators
+	sort.Slice(details, func(i, j int) bool {
+		return math.Abs(details[i].Contribution) > math.Abs(details[j].Contribution)
+	})
+
+	// Get top spam and ham indicators
+	var topSpam, topHam []string
+	for _, d := range details {
+		if len(topSpam) < 3 && d.Contribution > 0 {
+			topSpam = append(topSpam, fmt.Sprintf("%s (%.2f)", d.Char, d.SpamProbability))
+		}
+		if len(topHam) < 3 && d.Contribution < 0 {
+			topHam = append(topHam, fmt.Sprintf("%s (%.2f)", d.Char, 1-d.SpamProbability))
+		}
+	}
+
+	explanation.IsSpam = probability > 0.5
+	explanation.Probability = probability
+	explanation.Details = details
+	explanation.TopSpamIndicators = topSpam
+	explanation.TopHamIndicators = topHam
+
+	return explanation, nil
 }
 
 // SaveModel saves the trained model to a file
