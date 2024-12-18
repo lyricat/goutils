@@ -47,6 +47,7 @@ func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, lis
 	q := req.URL.Query()
 	// includes links and quoted tweet and retweet information
 	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang")
+	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
 	q.Add("max_results", fmt.Sprintf("%d", maxResults))
 	q.Add("expansions", "author_id,referenced_tweets.id")
 	if paginationToken != "" {
@@ -94,7 +95,7 @@ func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID
 
 	q := req.URL.Query()
 	// includes links and quoted tweet and retweet information
-	q.Add("user.fields", "username,name,profile_image_url,public_metrics")
+	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
 	req.URL.RawQuery = q.Encode()
 
 	c.addAuthHeader(req, token)

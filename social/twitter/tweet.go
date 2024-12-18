@@ -21,6 +21,7 @@ func (c *Client) GetTweetByID(ctx context.Context, token *oauth2.Token, tweetID 
 
 	q := req.URL.Query()
 	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang")
+	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
 	q.Add("expansions", "author_id,referenced_tweets.id")
 	req.URL.RawQuery = q.Encode()
 
@@ -61,6 +62,7 @@ func (c *Client) GetTweetsByIDs(ctx context.Context, token *oauth2.Token, tweetI
 	q := req.URL.Query()
 	q.Add("ids", strings.Join(tweetIDs, ","))
 	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang")
+	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
 	q.Add("expansions", "author_id,referenced_tweets.id")
 	req.URL.RawQuery = q.Encode()
 
