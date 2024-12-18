@@ -85,7 +85,7 @@ func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, lis
 }
 
 // GetListMembers retrieves members of a Twitter List
-func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID string) (*ListMemberResponse, error) {
+func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID string, maxResults int, paginationToken string) (*ListMemberResponse, error) {
 	url := fmt.Sprintf("https://api.x.com/2/lists/%s/members", listID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -96,6 +96,11 @@ func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID
 	q := req.URL.Query()
 	// includes links and quoted tweet and retweet information
 	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
+	q.Add("max_results", fmt.Sprintf("%d", maxResults))
+	if paginationToken != "" {
+		q.Add("pagination_token", paginationToken)
+	}
+
 	req.URL.RawQuery = q.Encode()
 
 	c.addAuthHeader(req, token)
