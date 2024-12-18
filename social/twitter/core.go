@@ -21,6 +21,11 @@ type (
 type (
 	ListMemberResponse struct {
 		Data []User `json:"data"`
+		Meta struct {
+			ResultCount   int64  `json:"result_count"`
+			PreviousToken string `json:"previous_token"`
+			NextToken     string `json:"next_token"`
+		} `json:"meta"`
 	}
 )
 
