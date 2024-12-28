@@ -64,6 +64,14 @@ func NewJSONMap() JSONMap {
 	return make(JSONMap)
 }
 
+func NewFromMap(m map[string]interface{}) JSONMap {
+	a := NewJSONMap()
+	for k, v := range m {
+		a[k] = v
+	}
+	return a
+}
+
 func (a JSONMap) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
