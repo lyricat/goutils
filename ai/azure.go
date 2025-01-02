@@ -10,7 +10,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 )
 
-func (s *Instant) RawRequestAzureOpenAI(ctx context.Context, messages []azopenai.ChatRequestMessageClassification) (string, error) {
+func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 

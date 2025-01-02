@@ -40,7 +40,7 @@ const (
 	ChatMessageRoleAssistant = "assistant"
 )
 
-func (s *Instant) RawRequestAWSBedrockClaude(ctx context.Context, messages []BedRockClaudeChatMessage) (string, error) {
+func (s *Instant) BedrockClaudeRawRequestAWS(ctx context.Context, messages []BedRockClaudeChatMessage) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 

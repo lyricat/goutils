@@ -10,7 +10,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func (s *Instant) RawRequestOpenAI(ctx context.Context, messages []openai.ChatCompletionMessage) (string, error) {
+func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 

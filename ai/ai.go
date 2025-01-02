@@ -64,6 +64,10 @@ type (
 		AwsBedrockModelArn          string
 		AwsBedrockEmbeddingModelArn string
 
+		// susanoo
+		SusanooEndpoint string
+		SusanooApiKey   string
+
 		Provider string
 
 		Debug bool
@@ -73,12 +77,18 @@ type (
 		Role    string `json:"role"`
 		Content string `json:"content"`
 	}
+
+	RawRequestResponse struct {
+		Text string
+		Json map[string]any
+	}
 )
 
 const (
 	ProviderAzure   = "azure"
 	ProviderOpenAI  = "openai"
 	ProviderBedrock = "bedrock"
+	ProviderSusanoo = "susanoo"
 )
 
 func (m GeneralChatCompletionMessage) Pretty() string {
@@ -123,7 +133,11 @@ func New(cfg Config) *Instant {
 	}
 }
 
-func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (string, error) {
+func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (*RawRequestResponse, error) {
+	return s.RawRequestWithParams(ctx, messages, nil)
+}
+
+func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*RawRequestResponse, error) {
 	if s.cfg.Debug {
 		slog.Info("[goutils.ai] RawRequest messages:")
 		for _, message := range messages {
@@ -131,7 +145,8 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 		}
 	}
 
-	var ret string
+	var text string
+	var ret = &RawRequestResponse{}
 	var err error
 
 	switch s.cfg.Provider {
@@ -143,7 +158,11 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 				Content: message.Content,
 			})
 		}
-		ret, err = s.RawRequestOpenAI(ctx, _messages)
+		text, err = s.OpenAIRawRequest(ctx, _messages)
+		if err != nil {
+			return nil, err
+		}
+		ret.Text = text
 
 	case ProviderAzure:
 		_messages := make([]azopenai.ChatRequestMessageClassification, 0, len(messages))
@@ -158,7 +177,11 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 				})
 			}
 		}
-		ret, err = s.RawRequestAzureOpenAI(ctx, _messages)
+		text, err = s.AzureOpenAIRawRequest(ctx, _messages)
+		if err != nil {
+			return nil, err
+		}
+		ret.Text = text
 
 	case ProviderBedrock:
 		_messages := make([]BedRockClaudeChatMessage, 0, len(messages))
@@ -173,14 +196,36 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 				},
 			})
 		}
-		ret, err = s.RawRequestAWSBedrockClaude(ctx, _messages)
+		text, err = s.BedrockClaudeRawRequestAWS(ctx, _messages)
+		if err != nil {
+			return nil, err
+		}
+		ret.Text = text
+
+	case ProviderSusanoo:
+		resp, err := s.SusanooRawRequest(ctx, messages, params)
+		if err != nil {
+			return nil, err
+		}
+		if params["format"] == "json" {
+			ret.Json = resp.Data.Result
+			buf, err := json.Marshal(ret.Json)
+			if err != nil {
+				ret.Text = fmt.Sprintf("%+v", ret.Json)
+			}
+			ret.Text = string(buf)
+		} else {
+			if val, ok := resp.Data.Result["response"]; ok {
+				ret.Text = val.(string)
+			}
+		}
 
 	default:
-		return "", fmt.Errorf("provider %s not supported", s.cfg.Provider)
+		return nil, fmt.Errorf("provider %s not supported", s.cfg.Provider)
 	}
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if s.cfg.Debug {
 		slog.Info("[goutils.ai] RawRequest", "ret", ret)
@@ -189,17 +234,23 @@ func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompleti
 	return ret, nil
 }
 
+// @deprecated
 func (s *Instant) OneTimeRequest(ctx context.Context, content string) (string, error) {
-	return s.RawRequest(ctx, []GeneralChatCompletionMessage{
+	resp, err := s.RawRequest(ctx, []GeneralChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleUser,
 			Content: content,
 		},
 	})
+	if err != nil {
+		return "", err
+	}
+	return resp.Text, nil
 }
 
+// @deprecated
 func (s *Instant) OneTimeRequestJson(ctx context.Context, content string) (map[string]any, error) {
-	text, err := s.RawRequest(ctx, []GeneralChatCompletionMessage{
+	resp, err := s.RawRequest(ctx, []GeneralChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleUser,
 			Content: content,
@@ -208,9 +259,13 @@ func (s *Instant) OneTimeRequestJson(ctx context.Context, content string) (map[s
 	if err != nil {
 		return nil, err
 	}
-	return s.GrabJsonOutput(ctx, text)
+	if resp.Json != nil {
+		return resp.Json, nil
+	}
+	return s.GrabJsonOutput(ctx, resp.Text)
 }
 
+// @deprecated
 func (s *Instant) TwoSteps(ctx context.Context, outputFormat string, input, inst string) (*ChainResult, error) {
 	return s.MultipleSteps(ctx, ChainParams{
 		Format: outputFormat,
@@ -265,9 +320,10 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 		if err != nil {
 			return nil, err
 		}
+
 		conv = append(conv, GeneralChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
-			Content: resp,
+			Content: resp.Text,
 		})
 	}
 
@@ -283,15 +339,18 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 	}
 
 	if params.Format == "json" {
-		js, err := s.GrabJsonOutput(ctx, resp)
-		if err != nil {
-			slog.Error("[goutils.ai] GrabJsonOutput error", "error", err)
-			return nil, err
+		if resp.Json != nil {
+			js, err := s.GrabJsonOutput(ctx, resp.Text)
+			if err != nil {
+				slog.Error("[goutils.ai] GrabJsonOutput error", "error", err)
+				return nil, err
+			}
+			ret.Json = js
 		}
-		ret.Json = js
 	}
 
-	ret.Text = resp
+	ret.Text = resp.Text
+	ret.Json = resp.Json
 	return ret, nil
 }
 
