@@ -339,7 +339,7 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 	}
 
 	if params.Format == "json" {
-		if resp.Json != nil {
+		if resp.Json == nil || len(resp.Json) == 0 {
 			js, err := s.GrabJsonOutput(ctx, resp.Text)
 			if err != nil {
 				slog.Error("[goutils.ai] GrabJsonOutput error", "error", err)
@@ -350,7 +350,6 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 	}
 
 	ret.Text = resp.Text
-	ret.Json = resp.Json
 	return ret, nil
 }
 
