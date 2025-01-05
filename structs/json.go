@@ -113,13 +113,17 @@ func (a *JSONMap) GetBool(key string) bool {
 	return false
 }
 
-func (a *JSONMap) GetMap(key string) JSONMap {
+func (a *JSONMap) GetMap(key string) *JSONMap {
+	ret := NewJSONMap()
 	if val, ok := (*a)[key]; ok {
 		if mapVal, ok := val.(JSONMap); ok {
-			return mapVal
+			ret = mapVal
+		}
+		if mapVal, ok := val.(map[string]interface{}); ok {
+			ret = NewFromMap(mapVal)
 		}
 	}
-	return NewJSONMap()
+	return &ret
 }
 
 func (a *JSONMap) GetFloat64(key string) float64 {
