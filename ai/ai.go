@@ -427,6 +427,14 @@ func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32,
 		return s.CreateEmbeddingOpenAI(ctx, input)
 	case ProviderBedrock:
 		return s.CreateEmbeddingBedrock(ctx, input)
+	case ProviderSusanoo:
+		// @TODO replace with susanoo embedding
+		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
+		if err != nil {
+			slog.Error("[goutils.ai] CreateEmbeddingAzureOpenAI error", "error", err)
+			return nil, err
+		}
+		return vec, nil
 	default:
 		return nil, fmt.Errorf("provider %s not supported for embeddings", s.cfg.Provider)
 	}
