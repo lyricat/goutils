@@ -12,6 +12,16 @@ import (
 )
 
 type (
+	SusanoParams struct {
+		Format     string                 `json:"format"`
+		Conditions SusanoParamsConditions `json:"conditions"`
+	}
+
+	SusanoParamsConditions struct {
+		PreferredProvider string `json:"preferred_provider"`
+		PreferredModel    string `json:"preferred_model"`
+	}
+
 	SusanooTaskRequest struct {
 		Messages []GeneralChatCompletionMessage `json:"messages"`
 		Params   map[string]any                 `json:"params"`
@@ -55,6 +65,10 @@ func (s *Instant) SusanooRawRequest(ctx context.Context, messages []GeneralChatC
 			Messages: messages,
 			Params:   params,
 		}
+		if task.Params == nil {
+			task.Params = make(map[string]any)
+		}
+
 		traceID, err := s.SusanooCreateTask(ctx, task)
 		if err != nil {
 			return err
@@ -126,6 +140,7 @@ func (s *Instant) SusanooCreateTask(ctx context.Context, task *SusanooTaskReques
 			return err
 		}
 		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("X-SUSANOO-KEY", s.cfg.SusanooApiKey)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -180,12 +195,13 @@ func (s *Instant) SusanooCreateTask(ctx context.Context, task *SusanooTaskReques
 }
 
 func (s *Instant) SusanooFetchTaskResult(ctx context.Context, traceID string) (*SusanooTaskResultResponse, error) {
-	apiUrl := fmt.Sprintf("%s/tasks/result", s.cfg.SusanooEndpoint)
+	apiUrl := fmt.Sprintf("%s/tasks/result?trace_id=%s", s.cfg.SusanooEndpoint, traceID)
 	req, err := http.NewRequest(http.MethodGet, apiUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("X-SUSANOO-KEY", s.cfg.SusanooApiKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -203,4 +219,13 @@ func (s *Instant) SusanooFetchTaskResult(ctx context.Context, traceID string) (*
 	}
 
 	return &body, nil
+}
+
+func (p *SusanoParams) ToMap() map[string]any {
+	params := make(map[string]any)
+	params["format"] = p.Format
+	params["conditions"] = make(map[string]any)
+	params["conditions"].(map[string]any)["preferred_provider"] = p.Conditions.PreferredProvider
+	params["conditions"].(map[string]any)["preferred_model"] = p.Conditions.PreferredModel
+	return params
 }

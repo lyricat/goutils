@@ -30,8 +30,9 @@ type (
 	}
 
 	ChainParams struct {
-		Format string
-		Steps  []ChainParamsStep
+		Format           string
+		Steps            []ChainParamsStep
+		RawRequestParams map[string]any
 	}
 
 	ChainResult struct {
@@ -234,6 +235,19 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	return ret, nil
 }
 
+func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*RawRequestResponse, error) {
+	resp, err := s.RawRequestWithParams(ctx, []GeneralChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleUser,
+			Content: content,
+		},
+	}, params)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // @deprecated
 func (s *Instant) OneTimeRequest(ctx context.Context, content string) (string, error) {
 	resp, err := s.RawRequest(ctx, []GeneralChatCompletionMessage{
@@ -316,7 +330,7 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 			Content: params.Steps[i].Instruction,
 		})
 
-		resp, err := s.RawRequest(ctx, conv)
+		resp, err := s.RawRequestWithParams(ctx, conv, params.RawRequestParams)
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +347,14 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainRe
 		Content: finalStep.Instruction,
 	})
 
-	resp, err := s.RawRequest(ctx, conv)
+	if params.RawRequestParams == nil {
+		params.RawRequestParams = make(map[string]any)
+	}
+	if _, ok := params.RawRequestParams["format"]; !ok {
+		params.RawRequestParams["format"] = params.Format
+	}
+
+	resp, err := s.RawRequestWithParams(ctx, conv, params.RawRequestParams)
 	if err != nil {
 		return nil, err
 	}
