@@ -35,11 +35,6 @@ type (
 		RawRequestParams map[string]any
 	}
 
-	ChainResult struct {
-		Text string
-		Json map[string]any
-	}
-
 	Instant struct {
 		cfg               Config
 		openaiClient      *openai.Client
@@ -79,7 +74,7 @@ type (
 		Content string `json:"content"`
 	}
 
-	RawRequestResponse struct {
+	Result struct {
 		Text string
 		Json map[string]any
 	}
@@ -134,11 +129,11 @@ func New(cfg Config) *Instant {
 	}
 }
 
-func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (*RawRequestResponse, error) {
+func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (*Result, error) {
 	return s.RawRequestWithParams(ctx, messages, nil)
 }
 
-func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*RawRequestResponse, error) {
+func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*Result, error) {
 	if s.cfg.Debug {
 		slog.Info("[goutils.ai] RawRequest messages:")
 		for _, message := range messages {
@@ -147,7 +142,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	}
 
 	var text string
-	var ret = &RawRequestResponse{}
+	var ret = &Result{}
 	var err error
 
 	switch s.cfg.Provider {
@@ -235,7 +230,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	return ret, nil
 }
 
-func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*RawRequestResponse, error) {
+func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*Result, error) {
 	resp, err := s.RawRequestWithParams(ctx, []GeneralChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleUser,
@@ -248,55 +243,7 @@ func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, 
 	return resp, nil
 }
 
-// @deprecated
-func (s *Instant) OneTimeRequest(ctx context.Context, content string) (string, error) {
-	resp, err := s.RawRequest(ctx, []GeneralChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
-		},
-	})
-	if err != nil {
-		return "", err
-	}
-	return resp.Text, nil
-}
-
-// @deprecated
-func (s *Instant) OneTimeRequestJson(ctx context.Context, content string) (map[string]any, error) {
-	resp, err := s.RawRequest(ctx, []GeneralChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if resp.Json != nil {
-		return resp.Json, nil
-	}
-	return s.GrabJsonOutput(ctx, resp.Text)
-}
-
-// @deprecated
-func (s *Instant) TwoSteps(ctx context.Context, outputFormat string, input, inst string) (*ChainResult, error) {
-	return s.MultipleSteps(ctx, ChainParams{
-		Format: outputFormat,
-		Steps: []ChainParamsStep{
-			{
-				Input:       input,
-				Instruction: "",
-			},
-			{
-				Input:       "",
-				Instruction: inst,
-			},
-		},
-	})
-}
-
-func (s *Instant) MultipleSteps(ctx context.Context, params ChainParams) (*ChainResult, error) {
+func (s *Instant) MultipleSteps(ctx context.Context, params ChainParams) (*Result, error) {
 	newSteps := make([]ChainParamsStep, 0)
 	for _, step := range params.Steps {
 		if step.Instruction == "" && step.Input == "" {
@@ -321,8 +268,8 @@ func (s *Instant) MultipleSteps(ctx context.Context, params ChainParams) (*Chain
 	return s.CallInChain(ctx, params)
 }
 
-func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*ChainResult, error) {
-	ret := &ChainResult{}
+func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*Result, error) {
+	ret := &Result{}
 	conv := make([]GeneralChatCompletionMessage, 0)
 	for i := 0; i < len(params.Steps)-1; i++ {
 		conv = append(conv, GeneralChatCompletionMessage{
