@@ -10,7 +10,13 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 )
 
-func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification) (string, error) {
+type (
+	AzureRawRequestOptions struct {
+		UseJSON bool
+	}
+)
+
+func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification, opts *AzureRawRequestOptions) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
@@ -20,11 +26,18 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 	})
 
 	go func() {
-
-		resp, err := s.azureOpenAIClient.GetChatCompletions(ctx, azopenai.ChatCompletionsOptions{
+		payload := azopenai.ChatCompletionsOptions{
 			Messages:       messages,
 			DeploymentName: &s.cfg.AzureOpenAIGptDeploymentID,
-		}, nil)
+		}
+
+		if opts != nil {
+			if opts.UseJSON {
+				payload.ResponseFormat = &azopenai.ChatCompletionsJSONResponseFormat{}
+			}
+		}
+
+		resp, err := s.azureOpenAIClient.GetChatCompletions(ctx, payload, nil)
 
 		if err != nil {
 			resultChan <- struct {

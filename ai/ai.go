@@ -156,6 +156,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		}
 		text, err = s.OpenAIRawRequest(ctx, _messages)
 		if err != nil {
+			ret.Text = text
 			return nil, err
 		}
 		ret.Text = text
@@ -173,8 +174,15 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 				})
 			}
 		}
-		text, err = s.AzureOpenAIRawRequest(ctx, _messages)
+		_opts := &AzureRawRequestOptions{}
+		if val, ok := params["format"]; ok {
+			if val == "json" {
+				_opts.UseJSON = true
+			}
+		}
+		text, err = s.AzureOpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
+			ret.Text = text
 			return nil, err
 		}
 		ret.Text = text
@@ -194,6 +202,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		}
 		text, err = s.BedrockClaudeRawRequestAWS(ctx, _messages)
 		if err != nil {
+			ret.Text = text
 			return nil, err
 		}
 		ret.Text = text
@@ -203,7 +212,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		if err != nil {
 			return nil, err
 		}
-		if params["format"] == "json" {
+		if val, ok := params["format"]; ok && val == "json" {
 			ret.Json = resp.Data.Result
 			buf, err := json.Marshal(ret.Json)
 			if err != nil {
