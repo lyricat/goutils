@@ -5,12 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage) (string, error) {
+type (
+	OpenAIRawRequestOptions struct {
+		UseJSON bool
+	}
+)
+
+func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *OpenAIRawRequestOptions) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
@@ -20,13 +27,20 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 	})
 
 	go func() {
-		resp, err := s.openaiClient.CreateChatCompletion(
-			ctx,
-			openai.ChatCompletionRequest{
-				Model:    s.cfg.OpenAIGptModel,
-				Messages: messages,
-			},
-		)
+		payload := openai.ChatCompletionRequest{
+			Model:    s.cfg.OpenAIGptModel,
+			Messages: messages,
+		}
+
+		if opts != nil {
+			if opts.UseJSON && supportJSONResponse(s.cfg.OpenAIGptModel) {
+				payload.ResponseFormat = &openai.ChatCompletionResponseFormat{
+					Type: "json_object",
+				}
+			}
+		}
+
+		resp, err := s.openaiClient.CreateChatCompletion(ctx, payload)
 		if err != nil {
 			resultChan <- struct {
 				resp string
@@ -93,4 +107,8 @@ func (s *Instant) CreateEmbeddingOpenAI(ctx context.Context, input []string) ([]
 	}
 
 	return nil, nil
+}
+
+func supportJSONResponse(model string) bool {
+	return strings.HasPrefix(model, "gpt-4") || strings.HasPrefix(model, "gpt-3.5")
 }

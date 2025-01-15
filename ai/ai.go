@@ -154,7 +154,13 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 				Content: message.Content,
 			})
 		}
-		text, err = s.OpenAIRawRequest(ctx, _messages)
+		_opts := &OpenAIRawRequestOptions{}
+		if val, ok := params["format"]; ok {
+			if val == "json" {
+				_opts.UseJSON = true
+			}
+		}
+		text, err = s.OpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
 			ret.Text = text
 			return nil, err
