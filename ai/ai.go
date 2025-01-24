@@ -64,6 +64,11 @@ type (
 		SusanooEndpoint string
 		SusanooApiKey   string
 
+		// deepseek
+		DeepseekEndpoint string
+		DeepseekModel    string
+		DeepseekApiKey   string
+
 		Provider string
 
 		Debug bool
@@ -81,10 +86,11 @@ type (
 )
 
 const (
-	ProviderAzure   = "azure"
-	ProviderOpenAI  = "openai"
-	ProviderBedrock = "bedrock"
-	ProviderSusanoo = "susanoo"
+	ProviderAzure    = "azure"
+	ProviderOpenAI   = "openai"
+	ProviderBedrock  = "bedrock"
+	ProviderSusanoo  = "susanoo"
+	ProviderDeepseek = "deepseek"
 )
 
 func (m GeneralChatCompletionMessage) Pretty() string {
@@ -119,6 +125,10 @@ func New(cfg Config) *Instant {
 				""),           // token can be left blank for now
 		})))
 		bedrockClient = bedrockruntime.New(sess)
+	}
+
+	if cfg.DeepseekEndpoint == "" {
+		cfg.DeepseekEndpoint = "https://api.deepseek.com"
 	}
 
 	return &Instant{
@@ -230,6 +240,20 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 				ret.Text = val.(string)
 			}
 		}
+
+	case ProviderDeepseek:
+		_opts := &DeepseekRawRequestOptions{}
+		if val, ok := params["format"]; ok {
+			if val == "json" {
+				_opts.UseJSON = true
+			}
+		}
+		text, err := s.DeepseekRawRequest(ctx, messages, _opts)
+		if err != nil {
+			ret.Text = text
+			return nil, err
+		}
+		ret.Text = text
 
 	default:
 		return nil, fmt.Errorf("provider %s not supported", s.cfg.Provider)
