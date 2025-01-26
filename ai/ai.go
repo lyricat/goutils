@@ -173,7 +173,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		text, err = s.OpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
 			ret.Text = text
-			return nil, err
+			return ret, err
 		}
 		ret.Text = text
 
@@ -199,7 +199,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		text, err = s.AzureOpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
 			ret.Text = text
-			return nil, err
+			return ret, err
 		}
 		ret.Text = text
 
@@ -219,7 +219,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		text, err = s.BedrockClaudeRawRequestAWS(ctx, _messages)
 		if err != nil {
 			ret.Text = text
-			return nil, err
+			return ret, err
 		}
 		ret.Text = text
 
@@ -251,7 +251,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		text, err := s.DeepseekRawRequest(ctx, messages, _opts)
 		if err != nil {
 			ret.Text = text
-			return nil, err
+			return ret, err
 		}
 		ret.Text = text
 

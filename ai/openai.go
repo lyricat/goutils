@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -107,8 +106,4 @@ func (s *Instant) CreateEmbeddingOpenAI(ctx context.Context, input []string) ([]
 	}
 
 	return nil, nil
-}
-
-func supportJSONResponse(model string) bool {
-	return strings.HasPrefix(model, "gpt-4") || strings.HasPrefix(model, "gpt-3.5")
 }

@@ -100,8 +100,10 @@ func (s *Instant) DeepseekRawRequest(ctx context.Context, messages []GeneralChat
 		}
 
 		if opts != nil {
-			if opts.UseJSON {
+			if opts.UseJSON && supportJSONResponse(s.cfg.DeepseekModel) {
 				payload.ResponseFormat.Type = "json_object"
+			} else {
+				payload.ResponseFormat.Type = "text"
 			}
 		}
 
@@ -138,6 +140,8 @@ func (s *Instant) DeepseekRawRequest(ctx context.Context, messages []GeneralChat
 			return
 		}
 		defer resp.Body.Close()
+		// buf1, _ := io.ReadAll(resp.Body)
+		// fmt.Printf("buf: %v\n", string(buf1))
 
 		var body DeepseekChatResponse
 		if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
