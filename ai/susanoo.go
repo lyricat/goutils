@@ -52,7 +52,7 @@ type (
 )
 
 func (s *Instant) SusanooRawRequest(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*SusanooTaskResultResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*3)
 	defer cancel()
 
 	resultChan := make(chan struct {
@@ -119,7 +119,7 @@ func (s *Instant) SusanooRawRequest(ctx context.Context, messages []GeneralChatC
 }
 
 func (s *Instant) SusanooCreateTask(ctx context.Context, task *SusanooTaskRequest) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
 	resultChan := make(chan struct {
