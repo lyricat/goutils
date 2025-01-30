@@ -1,4 +1,4 @@
-package httpdhelper
+package util
 
 import (
 	"encoding/json"
