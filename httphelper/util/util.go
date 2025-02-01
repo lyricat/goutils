@@ -2,8 +2,10 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/go-playground/validator"
@@ -57,4 +59,23 @@ func maxRunes(fl validator.FieldLevel) bool {
 	}
 
 	return utf8.RuneCountInString(field) <= maxRunes
+}
+
+func GetRemoteIP(r *http.Request) string {
+	ip := r.Header.Get("X-Real-IP")
+	if ip == "" {
+		ip = r.Header.Get("X-Forwarded-For")
+	}
+
+	if ip != "" {
+		parts := strings.Split(ip, ",")
+		ip = strings.TrimSpace(parts[0])
+	} else {
+		parts := strings.Split(r.RemoteAddr, ":")
+		if len(parts) > 1 {
+			port := parts[len(parts)-1]
+			ip = strings.TrimSpace(strings.Replace(r.RemoteAddr, fmt.Sprintf(":%s", port), "", -1))
+		}
+	}
+	return ip
 }
