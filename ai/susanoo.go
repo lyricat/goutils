@@ -14,7 +14,13 @@ import (
 type (
 	SusanoParams struct {
 		Format     string                 `json:"format"`
+		Search     SusanoParamsSearch     `json:"search"`
 		Conditions SusanoParamsConditions `json:"conditions"`
+	}
+
+	SusanoParamsSearch struct {
+		Enabled bool `json:"enabled"`
+		Limit   int  `json:"limit"`
 	}
 
 	SusanoParamsConditions struct {
