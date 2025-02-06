@@ -17,7 +17,7 @@ type (
 )
 
 func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *OpenAIRawRequestOptions) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
 	resultChan := make(chan struct {

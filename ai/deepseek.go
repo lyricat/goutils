@@ -78,7 +78,7 @@ type (
 )
 
 func (s *Instant) DeepseekRawRequest(ctx context.Context, messages []GeneralChatCompletionMessage, opts *DeepseekRawRequestOptions) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
 	resultChan := make(chan struct {

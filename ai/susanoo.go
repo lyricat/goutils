@@ -58,7 +58,7 @@ type (
 )
 
 func (s *Instant) SusanooRawRequest(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*SusanooTaskResultResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*3)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 
 	resultChan := make(chan struct {
