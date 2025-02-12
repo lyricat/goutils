@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.5.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -49,7 +50,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/yuin/goldmark v1.7.8
 	golang.org/x/net v0.32.0 // indirect
-	golang.org/x/oauth2 v0.24.0
+	golang.org/x/oauth2 v0.26.0
 	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0
 )

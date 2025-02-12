@@ -65,8 +65,12 @@ func New(cfg Config, rdb *redis.Client) *Client {
 	}
 }
 
+func getCacheKey(state string) string {
+	return fmt.Sprintf("user_token:twitter:%s", state)
+}
+
 func (c *Client) ExchangeTokensWithCode(ctx context.Context, code, state string) (*oauth2.Token, error) {
-	key := fmt.Sprintf("user_token:twitter:%s", state)
+	key := getCacheKey(state)
 	codeVerifier, err := c.rdb.Get(ctx, key).Result()
 	if err != nil {
 		return nil, err
