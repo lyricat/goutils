@@ -70,7 +70,7 @@ func (c *Client) GetAuthURL(ctx context.Context, state string) string {
 
 func (c *Client) ExchangeTokensWithCode(ctx context.Context, code, state string) (*oauth2.Token, error) {
 	var key string
-	if c.rdb != nil {
+	if c.rdb != nil && state != "" {
 		key = getCacheKey(state)
 		val, err := c.rdb.Get(ctx, key).Result()
 		if err != nil {
