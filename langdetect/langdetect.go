@@ -20,6 +20,7 @@ func New() *Detector {
 		lingua.English,
 		lingua.Chinese,
 		lingua.Japanese,
+		lingua.Italian,
 	}
 
 	detector := lingua.NewLanguageDetectorBuilder().
@@ -48,6 +49,8 @@ func (d *Detector) FormalizeName(lang, text string) string {
 		return detectZhOrJa(text)
 	case "japanese":
 		return detectZhOrJa(text)
+	case "italian":
+		return "it"
 	case "english":
 		return "en"
 	default:
