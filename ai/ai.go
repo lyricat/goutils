@@ -16,10 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go/service/bedrockruntime/bedrockruntimeiface"
 	"github.com/sashabaranov/go-openai"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
 )
 
 type (
@@ -245,6 +241,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	if err != nil {
 		return nil, err
 	}
+
 	if s.cfg.Debug {
 		slog.Info("[goutils.ai] RawRequest", "ret", ret)
 	}
@@ -329,7 +326,7 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*Result,
 	}
 
 	if params.Format == "json" {
-		if resp.Json == nil || len(resp.Json) == 0 {
+		if len(resp.Json) == 0 {
 			js, err := s.GrabJsonOutput(ctx, resp.Text)
 			if err != nil {
 				slog.Error("[goutils.ai] GrabJsonOutput error", "error", err)
@@ -347,11 +344,14 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 	// try to parse the response
 	var resp map[string]any
 	if err := json.Unmarshal([]byte(input), &resp); err != nil {
-		slog.Warn("[goutils.ai] GrabJsonOutput error, let's try to extract the result", "input", input, "error", err)
+		if s.cfg.Debug {
+			slog.Warn("[goutils.ai] failed to get json by calling json.Unmarshal, let's try to extract", "input", input, "error", err)
+		}
 
 		// use regex to extract the json part
-		// it could be multiple lines
-		re := regexp.MustCompile(`(?s)\{.*?\}`)
+		// it could be multiple lines.
+		// this regex will find the smallest substring that starts with { and ends with }, capturing everything in between—even if it spans multiple lines.
+		re := regexp.MustCompile(`(?s)\{.*\}`)
 		input = re.FindString(input)
 		// replace \\n -> \n
 		input = regexp.MustCompile(`\\n`).ReplaceAllString(input, "\n")
@@ -359,8 +359,17 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 		input = regexp.MustCompile(`\"`).ReplaceAllString(input, "\"")
 
 		if err := json.Unmarshal([]byte(input), &resp); err != nil {
-			slog.Error("[goutils.ai] GrabJsonOutput error again", "input", input, "error", err)
-			return nil, err
+			if s.cfg.Debug {
+				slog.Warn("[goutils.ai] failed to extract json", "input", input, "error", err)
+			}
+
+			// try to extract json from markdown
+			if err := s.GrabJsonOutputFromMd(ctx, input, &resp); err != nil {
+				if s.cfg.Debug {
+					slog.Error("[goutils.ai] failed to extract json from md", "input", input, "error", err)
+				}
+				return nil, err
+			}
 		}
 	}
 
@@ -381,26 +390,25 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 }
 
 func (s *Instant) GrabJsonOutputFromMd(ctx context.Context, input string, ptrOutput interface{}) error {
-	if err := json.Unmarshal([]byte(input), ptrOutput); err != nil {
-		slog.Warn("[goutils.ai] GrabJsonOutputRaw error, let's try to extract the result", "input", input, "error", err)
+	input = strings.TrimSpace(input)
 
-		input = strings.TrimSpace(input)
-
-		if strings.Contains(input, "```json") {
-			trimed, err := extractJSONFromMarkdown(input)
-			if err != nil {
-				slog.Warn("[goutils.ai] GrabJsonOutputFromMd error", "error", err)
-			} else {
-				input = trimed
+	if strings.Contains(input, "```json") {
+		trimed, err := extractJSONFromMarkdown(input)
+		if err != nil {
+			if s.cfg.Debug {
+				slog.Warn("[goutils.ai] failed to extract json from md", "error", err)
 			}
-		}
-
-		if err := json.Unmarshal([]byte(input), ptrOutput); err != nil {
-			slog.Error("[goutils.ai] GrabJsonOutputFromMd error again", "input", input, "error", err)
-			return err
+		} else {
+			input = trimed
 		}
 	}
 
+	if err := json.Unmarshal([]byte(input), ptrOutput); err != nil {
+		if s.cfg.Debug {
+			slog.Warn("[goutils.ai] failed to unmarshal json from md", "input", input, "error", err)
+		}
+		return err
+	}
 	return nil
 }
 
@@ -428,48 +436,4 @@ func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32,
 	default:
 		return nil, fmt.Errorf("provider %s not supported for embeddings", s.cfg.Provider)
 	}
-}
-
-func extractJSONFromMarkdown(markdownContent string) (string, error) {
-	md := goldmark.New(
-		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
-		),
-	)
-
-	fmt.Printf("markdownContent: %v\n", markdownContent)
-
-	// Parse the markdown content
-	reader := text.NewReader([]byte(markdownContent))
-	doc := md.Parser().Parse(reader)
-
-	jsonContents := make([]string, 0)
-	// Traverse the AST to find JSON code blocks
-	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-
-		// Check if the node is a fenced code block
-		if codeBlock, ok := n.(*ast.FencedCodeBlock); ok {
-			// Get the language info
-			lang := string(codeBlock.Language(reader.Source()))
-			if lang == "json" {
-				// Extract the content inside the code block
-				content := codeBlock.Text(reader.Source())
-				// Convert to string
-				jsonContent := string(content)
-				// Append to the list of JSON contents
-				jsonContents = append(jsonContents, jsonContent)
-				// Continue walking to find more JSON blocks
-			}
-		}
-
-		return ast.WalkContinue, nil
-	})
-
-	if len(jsonContents) == 0 {
-		slog.Error("[goutils.ai] No JSON code block found in the markdown content.")
-	}
-	return strings.Join(jsonContents, "\n"), nil
 }
