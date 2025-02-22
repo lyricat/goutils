@@ -28,11 +28,11 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 	go func() {
 		payload := azopenai.ChatCompletionsOptions{
 			Messages:       messages,
-			DeploymentName: &s.cfg.AzureOpenAIGptDeploymentID,
+			DeploymentName: &s.cfg.AzureOpenAIModel,
 		}
 
 		if opts != nil {
-			if opts.UseJSON && supportJSONResponse(s.cfg.OpenAIGptModel) {
+			if opts.UseJSON && supportJSONResponse(s.cfg.AzureOpenAIModel) {
 				payload.ResponseFormat = &azopenai.ChatCompletionsJSONResponseFormat{}
 			}
 		}
@@ -137,7 +137,7 @@ func (s *Instant) CreateEmbeddingAzureOpenAI(ctx context.Context, input []string
 
 	resp, err := s.azureOpenAIClient.GetEmbeddings(ctx, azopenai.EmbeddingsOptions{
 		Input:          input,
-		DeploymentName: &s.cfg.AzureOpenAIEmbeddingDeploymentID,
+		DeploymentName: &s.cfg.AzureOpenAIEmbeddingModel,
 	}, nil)
 
 	if err != nil {

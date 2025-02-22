@@ -93,8 +93,8 @@ import "github.com/lyricat/goutils/ai"
 	clientAzure := ai.New(ai.Config{
 		AzureOpenAIApiKey:                "...",
 		AzureOpenAIEndpoint:              "https://abc.openai.azure.com/",
-		AzureOpenAIGptDeploymentID:       "gpt-4o-mini-0718",
-		AzureOpenAIEmbeddingDeploymentID: "text-embedding-3-small-latest",
+		AzureOpenAIModel:       "gpt-4o-mini-0718",
+		AzureOpenAIEmbeddingModel: "text-embedding-3-small-latest",
 		Provider:                         "azure",
 
 		Debug: true,

@@ -44,15 +44,16 @@ type (
 
 	Config struct {
 		// openai
-		OpenAIApiKey         string
-		OpenAIGptModel       string
+		OpenAIBaseURl        string
+		OpenAIAPIKey         string
+		OpenAIModel          string
 		OpenAIEmbeddingModel string
 
 		// azure openai
-		AzureOpenAIApiKey                string
-		AzureOpenAIEndpoint              string
-		AzureOpenAIGptDeploymentID       string
-		AzureOpenAIEmbeddingDeploymentID string
+		AzureOpenAIAPIKey         string
+		AzureOpenAIEndpoint       string
+		AzureOpenAIModel          string
+		AzureOpenAIEmbeddingModel string
 
 		// aws bedrock
 		AwsKey                      string
@@ -63,11 +64,6 @@ type (
 		// susanoo
 		SusanooEndpoint string
 		SusanooApiKey   string
-
-		// deepseek
-		DeepseekEndpoint string
-		DeepseekModel    string
-		DeepseekApiKey   string
 
 		Provider string
 
@@ -91,6 +87,7 @@ const (
 	ProviderBedrock  = "bedrock"
 	ProviderSusanoo  = "susanoo"
 	ProviderDeepseek = "deepseek"
+	ProviderXAI      = "xai"
 )
 
 func (m GeneralChatCompletionMessage) Pretty() string {
@@ -103,12 +100,16 @@ func New(cfg Config) *Instant {
 	var bedrockClient bedrockruntimeiface.BedrockRuntimeAPI
 	var err error
 
-	if cfg.OpenAIApiKey != "" {
-		openaiClient = openai.NewClient(cfg.OpenAIApiKey)
+	if isOpenAICompatible(cfg) {
+		openaiClient, err = createOpenAICompatibleClient(cfg)
+		if err != nil {
+			slog.Error("[goutils.ai] createOpenAICompatibleClient error", "error", err)
+			return nil
+		}
 	}
 
-	if cfg.AzureOpenAIApiKey != "" && cfg.AzureOpenAIEndpoint != "" && cfg.AzureOpenAIGptDeploymentID != "" {
-		keyCredential := azcore.NewKeyCredential(cfg.AzureOpenAIApiKey)
+	if cfg.AzureOpenAIAPIKey != "" && cfg.AzureOpenAIEndpoint != "" && cfg.AzureOpenAIModel != "" {
+		keyCredential := azcore.NewKeyCredential(cfg.AzureOpenAIAPIKey)
 		azureOpenAIClient, err = azopenai.NewClientWithKeyCredential(cfg.AzureOpenAIEndpoint, keyCredential, nil)
 		if err != nil {
 			slog.Error("[goutils.ai] NewClientWithKeyCredential error", "error", err)
@@ -125,10 +126,6 @@ func New(cfg Config) *Instant {
 				""),           // token can be left blank for now
 		})))
 		bedrockClient = bedrockruntime.New(sess)
-	}
-
-	if cfg.DeepseekEndpoint == "" {
-		cfg.DeepseekEndpoint = "https://api.deepseek.com"
 	}
 
 	return &Instant{
@@ -156,7 +153,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	var err error
 
 	switch s.cfg.Provider {
-	case ProviderOpenAI:
+	case ProviderOpenAI, ProviderXAI, ProviderDeepseek:
 		_messages := make([]openai.ChatCompletionMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, openai.ChatCompletionMessage{
@@ -240,20 +237,6 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 				ret.Text = val.(string)
 			}
 		}
-
-	case ProviderDeepseek:
-		_opts := &DeepseekRawRequestOptions{}
-		if val, ok := params["format"]; ok {
-			if val == "json" {
-				_opts.UseJSON = true
-			}
-		}
-		text, err := s.DeepseekRawRequest(ctx, messages, _opts)
-		if err != nil {
-			ret.Text = text
-			return ret, err
-		}
-		ret.Text = text
 
 	default:
 		return nil, fmt.Errorf("provider %s not supported", s.cfg.Provider)

@@ -27,14 +27,14 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 
 	go func() {
 		payload := openai.ChatCompletionRequest{
-			Model:    s.cfg.OpenAIGptModel,
+			Model:    s.cfg.OpenAIModel,
 			Messages: messages,
 		}
 
 		if opts != nil {
-			if opts.UseJSON && supportJSONResponse(s.cfg.OpenAIGptModel) {
+			if opts.UseJSON && supportJSONResponse(s.cfg.OpenAIModel) {
 				payload.ResponseFormat = &openai.ChatCompletionResponseFormat{
-					Type: "json_object",
+					Type: openai.ChatCompletionResponseFormatTypeJSONObject,
 				}
 			}
 		}
