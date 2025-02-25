@@ -208,3 +208,11 @@ import 	"github.com/lyricat/goutils/qdrant"
 		slog.Error("failed to search points with filter", "error", err)
 	}
 ```
+
+### Models
+
+#### Generate Store
+
+```sh
+go run gen/gen.go
+```
