@@ -211,7 +211,7 @@ type IAttachmentDo interface {
 }
 
 // INSERT INTO @@table
-// (user_id, bucket_name, hash_id,
+// (owner_id, bucket_name, hash_id,
 //
 //	size, mime_type, pathname, filename,
 //	status,
@@ -223,7 +223,7 @@ type IAttachmentDo interface {
 // VALUES
 // (
 //
-//	@att.UserID, @att.BucketName, @att.HashID,
+//	@att.OwnerID, @att.BucketName, @att.HashID,
 //	@att.Size, @att.MimeType, @att.Pathname, @att.Filename,
 //	@att.Status,
 //	@att.OriginalMimeType,
@@ -236,7 +236,7 @@ func (a attachmentDo) CreateAttachment(ctx context.Context, att *core.Attachment
 	var params []interface{}
 
 	var generateSQL strings.Builder
-	params = append(params, att.UserID)
+	params = append(params, att.OwnerID)
 	params = append(params, att.BucketName)
 	params = append(params, att.HashID)
 	params = append(params, att.Size)
@@ -247,7 +247,7 @@ func (a attachmentDo) CreateAttachment(ctx context.Context, att *core.Attachment
 	params = append(params, att.OriginalMimeType)
 	params = append(params, att.Checksum)
 	params = append(params, att.ChecksumMethod)
-	generateSQL.WriteString("INSERT INTO attachments (user_id, bucket_name, hash_id, size, mime_type, pathname, filename, status, original_mime_type, checksum, checksum_method, created_at, updated_at ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW() ) RETURNING id; ")
+	generateSQL.WriteString("INSERT INTO attachments (owner_id, bucket_name, hash_id, size, mime_type, pathname, filename, status, original_mime_type, checksum, checksum_method, created_at, updated_at ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW() ) RETURNING id; ")
 
 	var executeSQL *gorm.DB
 	executeSQL = a.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert

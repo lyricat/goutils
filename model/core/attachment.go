@@ -33,7 +33,7 @@ type (
 
 	Attachment struct {
 		ID               uint64 `json:"id"`
-		OwnerID          uint64 `json:"user_id"` // an abstract owner who owns this attachment
+		OwnerID          uint64 `json:"owner_id"` // an abstract owner who owns this attachment
 		BucketName       string `json:"-"`
 		HashID           string `json:"hash_id"` // the unique hash id of the file
 		Size             int64  `json:"size"`    // size in bytes
@@ -55,7 +55,7 @@ type (
 
 	AttachmentStore interface {
 		// INSERT INTO @@table
-		//  (user_id, bucket_name, hash_id,
+		//  (owner_id, bucket_name, hash_id,
 		//   size, mime_type, pathname, filename,
 		//   status,
 		//   original_mime_type,
@@ -64,7 +64,7 @@ type (
 		//  )
 		// VALUES
 		//  (
-		//   @att.UserID, @att.BucketName, @att.HashID,
+		//   @att.OwnerID, @att.BucketName, @att.HashID,
 		//   @att.Size, @att.MimeType, @att.Pathname, @att.Filename,
 		//   @att.Status,
 		//   @att.OriginalMimeType,
