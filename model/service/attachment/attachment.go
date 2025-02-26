@@ -13,9 +13,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/lyricat/goutils/crypto"
 	"github.com/lyricat/goutils/model/core"
@@ -25,6 +27,8 @@ import (
 	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
 )
+
+const UserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0"
 
 var imageExtToWebp = []string{".jpg", ".jpeg", ".png"}
 
@@ -156,7 +160,6 @@ func (s *AttachmentService) UploadFile(ctx context.Context, input *core.UploadAt
 
 	// upload file to storage
 	attFilename := fmt.Sprintf("%s%s", hid, ext)
-	slog.Info("[goutils.attachmentz] upload file", "prefix", input.DstPrefix, "filename", attFilename, "size", att.Size, "mimeType", att.MimeType)
 	acl := storage.ACLPrivate
 	if input.IsPublic {
 		acl = storage.ACLPublicRead
@@ -169,6 +172,7 @@ func (s *AttachmentService) UploadFile(ctx context.Context, input *core.UploadAt
 		MimeType: att.MimeType,
 		ACL:      acl,
 	}); err != nil {
+		slog.Error("[goutils.attachmentz] upload file failed", "error", err)
 		return nil, err
 	}
 
@@ -192,6 +196,66 @@ func (s *AttachmentService) UploadFile(ctx context.Context, input *core.UploadAt
 	att.ViewURL = fmt.Sprintf("%s/%s/%s", s.cfg.Base, input.DstPrefix, attFilename)
 
 	return att, nil
+}
+
+func (s *AttachmentService) DownloadRemoteFile(ctx context.Context, input *core.UploadAttachmentInput) (string, error) {
+	// download image from url, and then call attachmentz.UploadFileToR2 to upload to quail
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, input.DownloadURL, nil)
+	if err != nil {
+		return "", err
+	}
+	if input.DownloadReferrerHost != "" {
+		req.Header.Add("Host", input.DownloadReferrerHost)
+		req.Header.Add("Referer", fmt.Sprintf("https://%s/", input.DownloadReferrerHost))
+	}
+	req.Header.Add("User-Agent", UserAgent)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// create a temp file and copy the response body to it
+	tempFile, err := os.CreateTemp("", "quailyimage-")
+	if err != nil {
+		return "", err
+	}
+	defer tempFile.Close()
+
+	_, err = io.Copy(tempFile, resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// open the temp file and upload to quail
+	file, err := os.Open(tempFile.Name())
+	if err != nil {
+		return "", err
+	}
+
+	fi, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	// remove the query string from the url
+	trimUrl := strings.Split(input.DownloadURL, "?")[0]
+
+	// get filename from url
+	filename := filepath.Base(trimUrl)
+	input.Filename = filename
+	input.Filesize = fi.Size()
+	input.File = file
+
+	att, err := s.UploadFile(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	return att.ViewURL, nil
 }
 
 func (s *AttachmentService) GetFileMimeType(file io.ReadSeeker, ext string) (string, error) {
@@ -225,7 +289,7 @@ func (s *AttachmentService) GetFileMimeType(file io.ReadSeeker, ext string) (str
 			return "application/json", nil
 		}
 	}
-	return contentType, nil
+	return strings.ToLower(contentType), nil
 }
 
 func getFileSha1Sum(file io.ReadSeeker) (string, error) {

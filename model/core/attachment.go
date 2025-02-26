@@ -21,14 +21,16 @@ const (
 
 type (
 	UploadAttachmentInput struct {
-		OwnerID          uint64
-		File             io.ReadSeeker
-		Filename         string
-		Filesize         int64
-		DstPrefix        string
-		IsPublic         bool
-		Encrypt          bool
-		EncryptPublicKey string
+		OwnerID              uint64
+		File                 io.ReadSeeker
+		Filename             string
+		Filesize             int64
+		DstPrefix            string
+		IsPublic             bool
+		Encrypt              bool
+		EncryptPublicKey     string
+		DownloadURL          string
+		DownloadReferrerHost string
 	}
 
 	Attachment struct {
@@ -110,5 +112,6 @@ type (
 		UploadFile(ctx context.Context, input *UploadAttachmentInput) (*Attachment, error)
 		GetAttachment(ctx context.Context, id uint64) (*Attachment, error)
 		GetFileMimeType(file io.ReadSeeker, ext string) (string, error)
+		DownloadRemoteFile(ctx context.Context, input *UploadAttachmentInput) (string, error)
 	}
 )
