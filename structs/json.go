@@ -138,3 +138,7 @@ func (a *JSONMap) GetFloat64(key string) float64 {
 func (a *JSONMap) SetValue(key string, value interface{}) {
 	(*a)[key] = value
 }
+
+func (a *JSONMap) Delete(key string) {
+	delete(*a, key)
+}
