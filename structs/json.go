@@ -72,6 +72,14 @@ func NewFromMap(m map[string]interface{}) JSONMap {
 	return a
 }
 
+func NewFromJSONString(jsonString string) JSONMap {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonString), &m); err != nil {
+		return nil
+	}
+	return NewFromMap(m)
+}
+
 func (a JSONMap) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
@@ -141,4 +149,12 @@ func (a *JSONMap) SetValue(key string, value interface{}) {
 
 func (a *JSONMap) Delete(key string) {
 	delete(*a, key)
+}
+
+func (a *JSONMap) Dump() string {
+	json, err := json.Marshal(a)
+	if err != nil {
+		return ""
+	}
+	return string(json)
 }
