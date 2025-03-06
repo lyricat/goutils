@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"sort"
 )
 
 type (
@@ -92,6 +93,11 @@ func (a *JSONMap) Scan(value interface{}) error {
 	return json.Unmarshal(b, &a)
 }
 
+func (a *JSONMap) HasKey(key string) bool {
+	_, ok := (*a)[key]
+	return ok
+}
+
 func (a *JSONMap) GetString(key string) string {
 	if val, ok := (*a)[key]; ok {
 		if strVal, ok := val.(string); ok {
@@ -157,4 +163,77 @@ func (a *JSONMap) Dump() string {
 		return ""
 	}
 	return string(json)
+}
+
+func (a *JSONMap) Size() int {
+	return len(*a)
+}
+
+func (a *JSONMap) Split(size int) []JSONMap {
+	// split the json map into size number of json maps
+	if size <= 0 {
+		// If size is invalid, return the original map as a single item
+		return []JSONMap{*a}
+	}
+
+	totalEntries := a.Size()
+	if totalEntries == 0 {
+		// If the map is empty, return an empty slice
+		return []JSONMap{}
+	}
+
+	// Calculate how many maps we need
+	numMaps := (totalEntries + size - 1) / size // Ceiling division
+	result := make([]JSONMap, 0, numMaps)
+
+	currentMap := NewJSONMap()
+	currentSize := 0
+
+	// Distribute entries among the maps
+	for key, value := range *a {
+		currentMap[key] = value
+		currentSize++
+
+		// When we reach the size limit, add the current map to results and create a new one
+		if currentSize >= size {
+			result = append(result, currentMap)
+			currentMap = NewJSONMap()
+			currentSize = 0
+		}
+	}
+
+	// Add the last map if it contains any entries
+	if currentSize > 0 {
+		result = append(result, currentMap)
+	}
+
+	return result
+}
+
+func (a *JSONMap) Merge(b JSONMap) {
+	for k, v := range b {
+		(*a)[k] = v
+	}
+}
+
+func (a *JSONMap) SortByKey() {
+	(*a) = sortMapKeys(*a).(JSONMap)
+}
+
+func sortMapKeys(data any) any {
+	switch data := data.(type) {
+	case map[string]any:
+		keys := make([]string, 0, len(data))
+		for key := range data {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		result := make(map[string]interface{}, len(data))
+		for _, key := range keys {
+			result[key] = sortMapKeys(data[key])
+		}
+		return result
+	default:
+		return data
+	}
 }
