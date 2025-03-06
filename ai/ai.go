@@ -40,7 +40,7 @@ type (
 
 	Config struct {
 		// openai
-		OpenAIBaseURl        string
+		OpenAIAPIBase        string
 		OpenAIAPIKey         string
 		OpenAIModel          string
 		OpenAIEmbeddingModel string
@@ -58,8 +58,8 @@ type (
 		AwsBedrockEmbeddingModelArn string
 
 		// susanoo
-		SusanooEndpoint string
-		SusanooApiKey   string
+		SusanooAPIBase string
+		SusanooAPIKey  string
 
 		Provider string
 

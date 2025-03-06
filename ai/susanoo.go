@@ -140,13 +140,13 @@ func (s *Instant) SusanooCreateTask(ctx context.Context, task *SusanooTaskReques
 		}
 
 		buf := bytes.NewBuffer(payload)
-		apiUrl := fmt.Sprintf("%s/tasks", s.cfg.SusanooEndpoint)
+		apiUrl := fmt.Sprintf("%s/tasks", s.cfg.SusanooAPIBase)
 		req, err := http.NewRequest(http.MethodPost, apiUrl, buf)
 		if err != nil {
 			return err
 		}
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("X-SUSANOO-KEY", s.cfg.SusanooApiKey)
+		req.Header.Add("X-SUSANOO-KEY", s.cfg.SusanooAPIKey)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -201,13 +201,13 @@ func (s *Instant) SusanooCreateTask(ctx context.Context, task *SusanooTaskReques
 }
 
 func (s *Instant) SusanooFetchTaskResult(ctx context.Context, traceID string) (*SusanooTaskResultResponse, error) {
-	apiUrl := fmt.Sprintf("%s/tasks/result?trace_id=%s", s.cfg.SusanooEndpoint, traceID)
+	apiUrl := fmt.Sprintf("%s/tasks/result?trace_id=%s", s.cfg.SusanooAPIBase, traceID)
 	req, err := http.NewRequest(http.MethodGet, apiUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("X-SUSANOO-KEY", s.cfg.SusanooApiKey)
+	req.Header.Add("X-SUSANOO-KEY", s.cfg.SusanooAPIKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
