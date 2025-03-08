@@ -149,6 +149,15 @@ func (a *JSONMap) GetFloat64(key string) float64 {
 	return 0
 }
 
+func (a *JSONMap) GetArray(key string) []any {
+	if val, ok := (*a)[key]; ok {
+		if arrVal, ok := val.([]any); ok {
+			return arrVal
+		}
+	}
+	return nil
+}
+
 func (a *JSONMap) SetValue(key string, value interface{}) {
 	(*a)[key] = value
 }
