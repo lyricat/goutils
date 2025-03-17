@@ -224,14 +224,20 @@ func (c *GeminiInstant) generateImagenImage(ctx context.Context, opts ImageGener
 
 	if opts.AspectRatio != "" {
 		reqBody["parameters"].(map[string]interface{})["aspectRatio"] = opts.AspectRatio
+	} else {
+		reqBody["parameters"].(map[string]interface{})["aspectRatio"] = AspectRatioLandscape43
 	}
 
 	if opts.SafetyFilterLevel != "" {
 		reqBody["parameters"].(map[string]interface{})["safetyFilterLevel"] = opts.SafetyFilterLevel
+	} else {
+		reqBody["parameters"].(map[string]interface{})["safetyFilterLevel"] = BlockOnlyHigh
 	}
 
 	if opts.PersonGeneration != "" {
 		reqBody["parameters"].(map[string]interface{})["personGeneration"] = opts.PersonGeneration
+	} else {
+		reqBody["parameters"].(map[string]interface{})["personGeneration"] = AllowAdult
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
