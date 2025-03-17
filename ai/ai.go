@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/lyricat/goutils/ai/core"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/aws/aws-sdk-go/aws"
@@ -18,79 +20,14 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-type (
-	ChainParamsStep struct {
-		Input       string
-		Instruction string
-		Options     any
-	}
-
-	ChainParams struct {
-		Format           string
-		Steps            []ChainParamsStep
-		RawRequestParams map[string]any
-	}
-
-	Instant struct {
-		cfg               Config
-		openaiClient      *openai.Client
-		azureOpenAIClient *azopenai.Client
-		bedrockClient     bedrockruntimeiface.BedrockRuntimeAPI
-	}
-
-	Config struct {
-		// openai
-		OpenAIAPIBase        string
-		OpenAIAPIKey         string
-		OpenAIModel          string
-		OpenAIEmbeddingModel string
-
-		// azure openai
-		AzureOpenAIAPIKey         string
-		AzureOpenAIEndpoint       string
-		AzureOpenAIModel          string
-		AzureOpenAIEmbeddingModel string
-
-		// aws bedrock
-		AwsKey                      string
-		AwsSecret                   string
-		AwsBedrockModelArn          string
-		AwsBedrockEmbeddingModelArn string
-
-		// susanoo
-		SusanooAPIBase string
-		SusanooAPIKey  string
-
-		Provider string
-
-		Debug bool
-	}
-
-	GeneralChatCompletionMessage struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	}
-
-	Result struct {
-		Text string
-		Json map[string]any
-	}
-)
-
-const (
-	ProviderAzure    = "azure"
-	ProviderOpenAI   = "openai"
-	ProviderBedrock  = "bedrock"
-	ProviderSusanoo  = "susanoo"
-	ProviderDeepseek = "deepseek"
-	ProviderXAI      = "xai"
-)
-
-func (m GeneralChatCompletionMessage) Pretty() string {
-	return fmt.Sprintf("{ Role: '%s', Content: '%s' }", m.Role, m.Content)
+type Instant struct {
+	cfg               core.Config
+	openaiClient      *openai.Client
+	azureOpenAIClient *azopenai.Client
+	bedrockClient     bedrockruntimeiface.BedrockRuntimeAPI
 }
 
-func New(cfg Config) *Instant {
+func New(cfg core.Config) *Instant {
 	var openaiClient *openai.Client
 	var azureOpenAIClient *azopenai.Client
 	var bedrockClient bedrockruntimeiface.BedrockRuntimeAPI
@@ -132,11 +69,11 @@ func New(cfg Config) *Instant {
 	}
 }
 
-func (s *Instant) RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (*Result, error) {
+func (s *Instant) RawRequest(ctx context.Context, messages []core.GeneralChatCompletionMessage) (*core.Result, error) {
 	return s.RawRequestWithParams(ctx, messages, nil)
 }
 
-func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*Result, error) {
+func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.GeneralChatCompletionMessage, params map[string]any) (*core.Result, error) {
 	if s.cfg.Debug {
 		slog.Info("[goutils.ai] RawRequest messages:")
 		for _, message := range messages {
@@ -145,11 +82,11 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	}
 
 	var text string
-	var ret = &Result{}
+	var ret = &core.Result{}
 	var err error
 
 	switch s.cfg.Provider {
-	case ProviderOpenAI, ProviderXAI, ProviderDeepseek:
+	case core.ProviderOpenAI, core.ProviderXAI, core.ProviderDeepseek:
 		_messages := make([]openai.ChatCompletionMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, openai.ChatCompletionMessage{
@@ -170,7 +107,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		}
 		ret.Text = text
 
-	case ProviderAzure:
+	case core.ProviderAzure:
 		_messages := make([]azopenai.ChatRequestMessageClassification, 0, len(messages))
 		for _, message := range messages {
 			if message.Role == openai.ChatMessageRoleUser {
@@ -196,7 +133,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		}
 		ret.Text = text
 
-	case ProviderBedrock:
+	case core.ProviderBedrock:
 		_messages := make([]BedRockClaudeChatMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, BedRockClaudeChatMessage{
@@ -216,7 +153,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 		}
 		ret.Text = text
 
-	case ProviderSusanoo:
+	case core.ProviderSusanoo:
 		resp, err := s.SusanooRawRequest(ctx, messages, params)
 		if err != nil {
 			return nil, err
@@ -249,8 +186,8 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []GeneralCh
 	return ret, nil
 }
 
-func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*Result, error) {
-	resp, err := s.RawRequestWithParams(ctx, []GeneralChatCompletionMessage{
+func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*core.Result, error) {
+	resp, err := s.RawRequestWithParams(ctx, []core.GeneralChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleUser,
 			Content: content,
@@ -262,21 +199,21 @@ func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, 
 	return resp, nil
 }
 
-func (s *Instant) MultipleSteps(ctx context.Context, params ChainParams) (*Result, error) {
-	newSteps := make([]ChainParamsStep, 0)
+func (s *Instant) MultipleSteps(ctx context.Context, params core.ChainParams) (*core.Result, error) {
+	newSteps := make([]core.ChainParamsStep, 0)
 	for _, step := range params.Steps {
 		if step.Instruction == "" && step.Input == "" {
 			continue
 		}
 		if step.Input != "" {
 			inst := fmt.Sprintf("Please read the following text and just say the word \"OK\". Do not explain the text: \n\n  %s", step.Input)
-			newSteps = append(newSteps, ChainParamsStep{
+			newSteps = append(newSteps, core.ChainParamsStep{
 				Options:     nil,
 				Input:       "",
 				Instruction: inst,
 			})
 		} else if step.Instruction != "" {
-			newSteps = append(newSteps, ChainParamsStep{
+			newSteps = append(newSteps, core.ChainParamsStep{
 				Options:     nil,
 				Input:       "",
 				Instruction: step.Instruction,
@@ -287,11 +224,11 @@ func (s *Instant) MultipleSteps(ctx context.Context, params ChainParams) (*Resul
 	return s.CallInChain(ctx, params)
 }
 
-func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*Result, error) {
-	ret := &Result{}
-	conv := make([]GeneralChatCompletionMessage, 0)
+func (s *Instant) CallInChain(ctx context.Context, params core.ChainParams) (*core.Result, error) {
+	ret := &core.Result{}
+	conv := make([]core.GeneralChatCompletionMessage, 0)
 	for i := 0; i < len(params.Steps)-1; i++ {
-		conv = append(conv, GeneralChatCompletionMessage{
+		conv = append(conv, core.GeneralChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,
 			Content: params.Steps[i].Instruction,
 		})
@@ -301,14 +238,14 @@ func (s *Instant) CallInChain(ctx context.Context, params ChainParams) (*Result,
 			return nil, err
 		}
 
-		conv = append(conv, GeneralChatCompletionMessage{
+		conv = append(conv, core.GeneralChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
 			Content: resp.Text,
 		})
 	}
 
 	finalStep := params.Steps[len(params.Steps)-1]
-	conv = append(conv, GeneralChatCompletionMessage{
+	conv = append(conv, core.GeneralChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: finalStep.Instruction,
 	})
@@ -414,18 +351,18 @@ func (s *Instant) GrabJsonOutputFromMd(ctx context.Context, input string, ptrOut
 
 func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32, error) {
 	switch s.cfg.Provider {
-	case ProviderAzure:
+	case core.ProviderAzure:
 		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
 		if err != nil {
 			slog.Error("[goutils.ai] CreateEmbeddingAzureOpenAI error", "error", err)
 			return nil, err
 		}
 		return vec, nil
-	case ProviderOpenAI:
+	case core.ProviderOpenAI:
 		return s.CreateEmbeddingOpenAI(ctx, input)
-	case ProviderBedrock:
+	case core.ProviderBedrock:
 		return s.CreateEmbeddingBedrock(ctx, input)
-	case ProviderSusanoo:
+	case core.ProviderSusanoo:
 		// @TODO replace with susanoo embedding
 		vec, err := s.CreateEmbeddingAzureOpenAI(ctx, input)
 		if err != nil {

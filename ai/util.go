@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/lyricat/goutils/ai/core"
 	"github.com/sashabaranov/go-openai"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -16,7 +17,7 @@ func supportJSONResponse(model string) bool {
 		strings.HasPrefix(model, "deepseek-chat") || strings.HasPrefix(model, "grok-")
 }
 
-func isOpenAICompatible(cfg Config) bool {
+func isOpenAICompatible(cfg core.Config) bool {
 	compatibleProviders := []string{"openai", "deepseek", "xai"}
 	for _, provider := range compatibleProviders {
 		if cfg.Provider == provider {
@@ -26,7 +27,7 @@ func isOpenAICompatible(cfg Config) bool {
 	return false
 }
 
-func createOpenAICompatibleClient(cfg Config) (*openai.Client, error) {
+func createOpenAICompatibleClient(cfg core.Config) (*openai.Client, error) {
 	config := openai.DefaultConfig(cfg.OpenAIAPIKey)
 	switch cfg.Provider {
 	case "openai":
