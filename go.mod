@@ -83,6 +83,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.77.0
 	github.com/bwmarrin/discordgo v0.28.1
+	github.com/go-chi/chi v1.5.5
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-jwt/jwt v3.2.2+incompatible
