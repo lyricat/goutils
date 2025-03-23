@@ -36,7 +36,7 @@ func NotFound(w http.ResponseWriter, status int, err error) {
 	_, _ = w.Write([]byte(err.Error()))
 }
 
-func Error(w http.ResponseWriter, status int, err error) {
+func Error(w http.ResponseWriter, status int, err error, errMap map[error]string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
@@ -44,8 +44,10 @@ func Error(w http.ResponseWriter, status int, err error) {
 	if err != nil {
 		msg = err.Error()
 	}
+	code := getErrorCode(err, errMap)
 	_ = enc.Encode(map[string]interface{}{
-		"msg": msg,
+		"code": code,
+		"msg":  msg,
 	})
 }
 
@@ -72,4 +74,16 @@ func JSONBytes(w http.ResponseWriter, bs []byte) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(bs)
+}
+
+func getErrorCode(err error, errMap map[error]string) string {
+	if err == nil || errMap == nil {
+		return "-1"
+	}
+
+	if code, ok := errMap[err]; ok {
+		return code
+	}
+
+	return "-1"
 }

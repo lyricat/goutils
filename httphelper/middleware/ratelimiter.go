@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lyricat/goutils/httphelper/render"
 	"github.com/lyricat/goutils/httphelper/util"
 	"github.com/redis/go-redis/v9"
 )
@@ -83,7 +82,7 @@ func RateLimiter(params RateLimiterParams) func(next http.Handler) http.Handler 
 			}
 			if count, err := hit(ctx, params.Rdb, "ip", path, period, params.RateLimitConfig.GlobalRateLimit.Threshold); err != nil {
 				slog.Warn("[goutils] limiter.GlobalHit", "error", err, "ip", ip, "url", r.URL.Path, "period", period, "count", count)
-				render.Error(w, http.StatusTooManyRequests, err)
+				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
 			}
 
@@ -112,7 +111,7 @@ func RateLimiter(params RateLimiterParams) func(next http.Handler) http.Handler 
 
 			if count, err := hit(ctx, params.Rdb, "ip", path, period, thd); err != nil {
 				slog.Warn("[goutils] limiter.Hit", "error", err, "ip", ip, "url", r.URL.Path, "period", period, "count", count)
-				render.Error(w, http.StatusTooManyRequests, err)
+				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
 			}
 

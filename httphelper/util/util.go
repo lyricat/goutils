@@ -24,6 +24,15 @@ func ReadJSONPayload(r *http.Request, body interface{}) error {
 	return nil
 }
 
+func ReadJSONPayloadWithoutValidation(r *http.Request, body interface{}) error {
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&body); err != nil {
+		return err
+	}
+	defer r.Body.Close()
+	return nil
+}
+
 func ValidatePayload(body interface{}) error {
 	validate := validator.New()
 
