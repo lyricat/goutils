@@ -14,8 +14,7 @@ type PaginationResponse struct {
 		NextOffset uint64 `json:"next_offset"`
 		Total      uint64 `json:"total"`
 	} `json:"pagination"`
-	Langs []string `json:"langs"`
-	Items any      `json:"items"`
+	Items any `json:"items"`
 }
 
 func Html(w http.ResponseWriter, t []byte) {
