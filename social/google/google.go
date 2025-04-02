@@ -25,6 +25,15 @@ type (
 		Picture    string `json:"profile"`
 	}
 
+	TokenResponse struct {
+		Email         string `json:"email"`
+		EmailVerified string `json:"email_verified"`
+		Sub           string `json:"sub"`
+		Scope         string `json:"scope"`
+		Exp           string `json:"exp"`
+		ExpiresIn     string `json:"expires_in"`
+	}
+
 	Config struct {
 		CredentialsFile string
 	}
@@ -109,9 +118,50 @@ func (c *Client) RefreshAccessToken(ctx context.Context, token *oauth2.Token) (*
 	return newToken, nil
 }
 
+func (c *Client) GetTokenInfo(ctx context.Context, token *oauth2.Token) (*TokenResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=%s", token.AccessToken), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching token info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("token info request failed: %s", string(bodyBytes))
+	}
+
+	raw := &TokenResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decoding user info: %w", err)
+	}
+
+	if raw.Email == "" {
+		return nil, errors.New("email not found")
+	}
+
+	if raw.EmailVerified != "true" {
+		return nil, errors.New("email not verified")
+	}
+
+	return raw, nil
+}
+
 func (c *Client) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserResponse, error) {
-	client := c.oauth2Config.Client(ctx, token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v3/userinfo", nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching user info: %w", err)
 	}
