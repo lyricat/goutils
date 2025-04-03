@@ -145,10 +145,6 @@ func (c *Client) GetTokenInfo(ctx context.Context, token *oauth2.Token) (*TokenR
 		return nil, errors.New("email not found")
 	}
 
-	if raw.EmailVerified != "true" {
-		return nil, errors.New("email not verified")
-	}
-
 	return raw, nil
 }
 
@@ -188,10 +184,6 @@ func (c *Client) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserRes
 
 	if raw.Email == "" {
 		return nil, errors.New("email not found")
-	}
-
-	if !raw.VerifiedEmail {
-		return nil, errors.New("email not verified")
 	}
 
 	userInfo := &UserResponse{
