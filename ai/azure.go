@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
+	"github.com/lyricat/goutils/ai/core"
 )
 
 type (
@@ -16,12 +17,12 @@ type (
 	}
 )
 
-func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification, opts *AzureRawRequestOptions) (string, error) {
+func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification, opts *AzureRawRequestOptions) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
 	resultChan := make(chan struct {
-		resp string
+		resp *core.Result
 		err  error
 	})
 
@@ -41,17 +42,17 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 
 		if err != nil {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: err}
+			}{resp: nil, err: err}
 			return
 		}
 
 		if len(resp.Choices) == 0 {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: nil}
+			}{resp: nil, err: nil}
 			return
 		}
 
@@ -86,9 +87,9 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 					}
 					if err != nil {
 						resultChan <- struct {
-							resp string
+							resp *core.Result
 							err  error
-						}{resp: "", err: err}
+						}{resp: nil, err: err}
 						return
 					}
 				}
@@ -97,17 +98,21 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 
 		if !gotReply {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: nil}
+			}{resp: nil, err: nil}
 			return
 		}
 
-		ret := resp.Choices[0].Message.Content
+		r := &core.Result{Text: *resp.Choices[0].Message.Content}
+		r.Usage.InputTokens = int(*resp.Usage.PromptTokens)
+		r.Usage.OutputTokens = int(*resp.Usage.CompletionTokens)
+		r.Usage.CachedTokens = int(*resp.Usage.PromptTokensDetails.CachedTokens)
+
 		resultChan <- struct {
-			resp string
+			resp *core.Result
 			err  error
-		}{resp: *ret, err: nil}
+		}{resp: r, err: nil}
 	}()
 
 	select {
@@ -115,17 +120,17 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 		// Context was canceled or timed out
 		if errors.Is(ctx.Err(), context.Canceled) {
 			slog.Error("[goutils.ai] Azure Request canceled", "error", ctx.Err())
-			return "", fmt.Errorf("request canceled: %w", ctx.Err())
+			return nil, fmt.Errorf("request canceled: %w", ctx.Err())
 		}
-		return "", fmt.Errorf("request failed: %w", ctx.Err())
+		return nil, fmt.Errorf("request failed: %w", ctx.Err())
 	case result := <-resultChan:
 		if result.err != nil {
 			if errors.Is(result.err, context.Canceled) {
 				slog.Error("[goutils.ai] Azure Request canceled", "error", result.err)
-				return "", fmt.Errorf("request canceled: %w", result.err)
+				return nil, fmt.Errorf("request canceled: %w", result.err)
 			}
 			slog.Error("[goutils.ai] Azure Request error", "error", result.err)
-			return "", result.err
+			return nil, result.err
 		}
 		return result.resp, nil
 	}

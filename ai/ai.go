@@ -81,7 +81,6 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 		}
 	}
 
-	var text string
 	var ret = &core.Result{}
 	var err error
 
@@ -124,12 +123,10 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 				_opts.UseJSON = true
 			}
 		}
-		text, err = s.AzureOpenAIRawRequest(ctx, _messages, _opts)
+		ret, err = s.AzureOpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
-			ret.Text = text
 			return ret, err
 		}
-		ret.Text = text
 
 	case core.ProviderBedrock:
 		_messages := make([]BedRockClaudeChatMessage, 0, len(messages))
