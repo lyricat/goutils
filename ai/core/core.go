@@ -50,13 +50,21 @@ type (
 	}
 
 	GeneralChatCompletionMessage struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
+		Role        string `json:"role"`
+		Content     string `json:"content"`
+		EnableCache bool   `json:"enable_cache,omitempty"`
+	}
+
+	ResultUsage struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+		CachedTokens int `json:"cached_tokens"`
 	}
 
 	Result struct {
-		Text string
-		Json map[string]any
+		Text  string         `json:"text"`
+		Json  map[string]any `json:"json"`
+		Usage ResultUsage    `json:"usage"`
 	}
 
 	AIInstant interface {

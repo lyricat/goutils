@@ -100,12 +100,10 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 				_opts.UseJSON = true
 			}
 		}
-		text, err = s.OpenAIRawRequest(ctx, _messages, _opts)
+		ret, err = s.OpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
-			ret.Text = text
 			return ret, err
 		}
-		ret.Text = text
 
 	case core.ProviderAzure:
 		_messages := make([]azopenai.ChatRequestMessageClassification, 0, len(messages))
@@ -136,7 +134,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 	case core.ProviderBedrock:
 		_messages := make([]BedRockClaudeChatMessage, 0, len(messages))
 		for _, message := range messages {
-			_messages = append(_messages, BedRockClaudeChatMessage{
+			m := BedRockClaudeChatMessage{
 				Role: message.Role,
 				Content: []BedRockClaudeMessageContent{
 					{
@@ -144,14 +142,19 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 						Text: message.Content,
 					},
 				},
-			})
+			}
+			// @TODO: uncomment this when bedrock supports cache control for public use
+			// if message.EnableCache {
+			// 	m.Content[0].CacheControl = &BedRockClaudeCacheControl{
+			// 		Type: "ephemeral",
+			// 	}
+			// }
+			_messages = append(_messages, m)
 		}
-		text, err = s.BedrockClaudeRawRequestAWS(ctx, _messages)
+		ret, err = s.BedrockRawRequest(ctx, _messages)
 		if err != nil {
-			ret.Text = text
 			return ret, err
 		}
-		ret.Text = text
 
 	case core.ProviderSusanoo:
 		resp, err := s.SusanooRawRequest(ctx, messages, params)

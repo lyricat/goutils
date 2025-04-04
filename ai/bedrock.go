@@ -10,17 +10,25 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/bedrockruntime"
+	"github.com/lyricat/goutils/ai/core"
 )
 
 type (
+	// Claude's Input & Output
+	// FYI: https://docs.aws.amazon.com/ja_jp/bedrock/latest/userguide/model-parameters-anthropic-claude-messages.html
 	BedRockClaudeChatMessage struct {
 		Role    string                        `json:"role"`
 		Content []BedRockClaudeMessageContent `json:"content"`
 	}
 
+	BedRockClaudeCacheControl struct {
+		Type string `json:"type"` // default, "ephemeral"
+	}
+
 	BedRockClaudeMessageContent struct {
-		Type string `json:"type"`
-		Text string `json:"text,omitempty"`
+		Type         string                     `json:"type"`
+		Text         string                     `json:"text,omitempty"`
+		CacheControl *BedRockClaudeCacheControl `json:"cache_control,omitempty"`
 	}
 
 	BedrockClaudeResponse struct {
@@ -31,7 +39,12 @@ type (
 		Content      []BedRockClaudeMessageContent `json:"content"`
 		StopReason   string                        `json:"stop_reason"`
 		StopSequence interface{}                   `json:"stop_sequence"`
-		Usage        map[string]int                `json:"usage"`
+		Usage        struct {
+			CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+			CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+			InputTokens              int `json:"input_tokens"`
+			OutputTokens             int `json:"output_tokens"`
+		} `json:"usage"`
 	}
 )
 
@@ -40,12 +53,12 @@ const (
 	ChatMessageRoleAssistant = "assistant"
 )
 
-func (s *Instant) BedrockClaudeRawRequestAWS(ctx context.Context, messages []BedRockClaudeChatMessage) (string, error) {
+func (s *Instant) BedrockRawRequest(ctx context.Context, messages []BedRockClaudeChatMessage) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
 	resultChan := make(chan struct {
-		resp string
+		resp *core.Result
 		err  error
 	})
 
@@ -59,9 +72,9 @@ func (s *Instant) BedrockClaudeRawRequestAWS(ctx context.Context, messages []Bed
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: fmt.Errorf("failed to marshal request body: %w", err)}
+			}{resp: nil, err: fmt.Errorf("failed to marshal request body: %w", err)}
 			return
 		}
 
@@ -74,33 +87,42 @@ func (s *Instant) BedrockClaudeRawRequestAWS(ctx context.Context, messages []Bed
 
 		if err != nil {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: err}
+			}{resp: nil, err: err}
 			return
 		}
 
 		var r BedrockClaudeResponse
 		if err := json.Unmarshal([]byte(resp.Body), &r); err != nil {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: fmt.Errorf("failed to unmarshal response: %w", err)}
+			}{resp: nil, err: fmt.Errorf("failed to unmarshal response: %w", err)}
 			return
 		}
 
 		if len(r.Content) == 0 {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: nil}
+			}{resp: nil, err: nil}
 			return
 		}
 
+		result := &core.Result{
+			Text: r.Content[0].Text,
+		}
+		if r.Usage.CacheCreationInputTokens > 0 || r.Usage.CacheReadInputTokens > 0 {
+			result.Usage.CachedTokens = r.Usage.CacheCreationInputTokens + r.Usage.CacheReadInputTokens
+		}
+		result.Usage.InputTokens = r.Usage.InputTokens
+		result.Usage.OutputTokens = r.Usage.OutputTokens
+
 		resultChan <- struct {
-			resp string
+			resp *core.Result
 			err  error
-		}{resp: r.Content[0].Text, err: nil}
+		}{resp: result, err: nil}
 	}()
 
 	select {
@@ -108,17 +130,17 @@ func (s *Instant) BedrockClaudeRawRequestAWS(ctx context.Context, messages []Bed
 		// Context was canceled or timed out
 		if errors.Is(ctx.Err(), context.Canceled) {
 			slog.Error("[goutils.ai] AWS Bedrock Request canceled", "error", ctx.Err())
-			return "", fmt.Errorf("request canceled: %w", ctx.Err())
+			return nil, fmt.Errorf("request canceled: %w", ctx.Err())
 		}
-		return "", fmt.Errorf("request failed: %w", ctx.Err())
+		return nil, fmt.Errorf("request failed: %w", ctx.Err())
 	case result := <-resultChan:
 		if result.err != nil {
 			if errors.Is(result.err, context.Canceled) {
 				slog.Error("[goutils.ai] AWS Bedrock Request canceled", "error", result.err)
-				return "", fmt.Errorf("request canceled: %w", result.err)
+				return nil, fmt.Errorf("request canceled: %w", result.err)
 			}
 			slog.Error("[goutils.ai] AWS Bedrock Request error", "error", result.err)
-			return "", result.err
+			return nil, result.err
 		}
 		return result.resp, nil
 	}

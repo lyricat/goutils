@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/lyricat/goutils/ai/core"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -16,12 +17,12 @@ type (
 	}
 )
 
-func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *OpenAIRawRequestOptions) (string, error) {
+func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *OpenAIRawRequestOptions) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
 	resultChan := make(chan struct {
-		resp string
+		resp *core.Result
 		err  error
 	})
 
@@ -42,24 +43,29 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 		resp, err := s.openaiClient.CreateChatCompletion(ctx, payload)
 		if err != nil {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: err}
+			}{resp: nil, err: err}
 			return
 		}
 
 		if len(resp.Choices) == 0 {
 			resultChan <- struct {
-				resp string
+				resp *core.Result
 				err  error
-			}{resp: "", err: nil}
+			}{resp: nil, err: nil}
 			return
 		}
 
+		r := &core.Result{Text: resp.Choices[0].Message.Content}
+		r.Usage.InputTokens = resp.Usage.PromptTokens
+		r.Usage.OutputTokens = resp.Usage.CompletionTokens
+		r.Usage.CachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+
 		resultChan <- struct {
-			resp string
+			resp *core.Result
 			err  error
-		}{resp: resp.Choices[0].Message.Content, err: nil}
+		}{resp: r, err: nil}
 	}()
 
 	select {
@@ -67,17 +73,17 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 		// Context was canceled or timed out
 		if errors.Is(ctx.Err(), context.Canceled) {
 			slog.Error("[goutils.ai] OpenAI Request canceled", "error", ctx.Err())
-			return "", fmt.Errorf("request canceled: %w", ctx.Err())
+			return nil, fmt.Errorf("request canceled: %w", ctx.Err())
 		}
-		return "", fmt.Errorf("request failed: %w", ctx.Err())
+		return nil, fmt.Errorf("request failed: %w", ctx.Err())
 	case result := <-resultChan:
 		if result.err != nil {
 			if errors.Is(result.err, context.Canceled) {
 				slog.Error("[goutils.ai] OpenAI Request canceled", "error", result.err)
-				return "", fmt.Errorf("request canceled: %w", result.err)
+				return nil, fmt.Errorf("request canceled: %w", result.err)
 			}
 			slog.Error("[goutils.ai] OpenAI Request error", "error", result.err)
-			return "", result.err
+			return nil, result.err
 		}
 		return result.resp, nil
 	}
