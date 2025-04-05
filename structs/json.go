@@ -6,6 +6,8 @@ import (
 	"errors"
 	"sort"
 	"strconv"
+
+	"github.com/shopspring/decimal"
 )
 
 type (
@@ -157,6 +159,29 @@ func (a *JSONMap) GetFloat64(key string) float64 {
 		}
 	}
 	return 0
+}
+
+func (a *JSONMap) GetDecimal(key string) decimal.Decimal {
+	if val, ok := (*a)[key]; ok {
+		if strVal, ok := val.(string); ok {
+			if val, err := decimal.NewFromString(strVal); err == nil {
+				return val
+			}
+		}
+		if floatVal, ok := val.(float64); ok {
+			return decimal.NewFromFloat(floatVal)
+		}
+		if intVal, ok := val.(int64); ok {
+			return decimal.NewFromInt(intVal)
+		}
+		if uintVal, ok := val.(uint64); ok {
+			return decimal.NewFromInt(int64(uintVal))
+		}
+		if intVal, ok := val.(int); ok {
+			return decimal.NewFromInt(int64(intVal))
+		}
+	}
+	return decimal.Zero
 }
 
 func (a *JSONMap) GetArray(key string) []any {
