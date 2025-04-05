@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strconv"
 )
 
 type (
@@ -109,10 +110,19 @@ func (a *JSONMap) GetString(key string) string {
 
 func (a *JSONMap) GetInt64(key string) int64 {
 	if val, ok := (*a)[key]; ok {
+		if intVal, ok := val.(float64); ok {
+			return int64(intVal)
+		}
 		if intVal, ok := val.(int64); ok {
 			return intVal
-		} else if intVal, ok := val.(float64); ok {
+		}
+		if intVal, ok := val.(int); ok {
 			return int64(intVal)
+		}
+		if str, ok := val.(string); ok {
+			if num, err := strconv.ParseInt(str, 10, 64); err == nil {
+				return num
+			}
 		}
 	}
 	return 0
