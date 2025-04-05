@@ -41,9 +41,6 @@ type (
 		SusanooAPIBase string
 		SusanooAPIKey  string
 
-		// gemini
-		GeminiAPIKey string
-
 		Provider string
 
 		Debug bool
@@ -81,6 +78,7 @@ const (
 	ProviderSusanoo  = "susanoo"
 	ProviderDeepseek = "deepseek"
 	ProviderXAI      = "xai"
+	ProviderGemini   = "gemini"
 )
 
 func (m GeneralChatCompletionMessage) Pretty() string {

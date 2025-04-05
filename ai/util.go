@@ -17,10 +17,10 @@ func supportJSONResponse(model string) bool {
 		strings.HasPrefix(model, "deepseek-chat") || strings.HasPrefix(model, "grok-")
 }
 
-func isOpenAICompatible(cfg core.Config) bool {
-	compatibleProviders := []string{"openai", "deepseek", "xai"}
+func IsOpenAICompatible(p string) bool {
+	compatibleProviders := []string{"openai", "deepseek", "xai", "gemini"}
 	for _, provider := range compatibleProviders {
-		if cfg.Provider == provider {
+		if p == provider {
 			return true
 		}
 	}
@@ -30,12 +30,14 @@ func isOpenAICompatible(cfg core.Config) bool {
 func createOpenAICompatibleClient(cfg core.Config) (*openai.Client, error) {
 	config := openai.DefaultConfig(cfg.OpenAIAPIKey)
 	switch cfg.Provider {
-	case "openai":
-		// no-op
-	case "deepseek":
+	case core.ProviderOpenAI:
+		// pass
+	case core.ProviderDeepseek:
 		config.BaseURL = "https://api.deepseek.com"
-	case "xai":
+	case core.ProviderXAI:
 		config.BaseURL = "https://api.x.ai/v1"
+	case core.ProviderGemini:
+		config.BaseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
 	default:
 		return nil, errors.New("unsupported provider")
 	}

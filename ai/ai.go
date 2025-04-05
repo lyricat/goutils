@@ -33,7 +33,7 @@ func New(cfg core.Config) *Instant {
 	var bedrockClient bedrockruntimeiface.BedrockRuntimeAPI
 	var err error
 
-	if isOpenAICompatible(cfg) {
+	if IsOpenAICompatible(cfg.Provider) {
 		openaiClient, err = createOpenAICompatibleClient(cfg)
 		if err != nil {
 			slog.Error("[goutils.ai] createOpenAICompatibleClient error", "error", err)
@@ -85,7 +85,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 	var err error
 
 	switch s.cfg.Provider {
-	case core.ProviderOpenAI, core.ProviderXAI, core.ProviderDeepseek:
+	case core.ProviderOpenAI, core.ProviderXAI, core.ProviderDeepseek, core.ProviderGemini:
 		_messages := make([]openai.ChatCompletionMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, openai.ChatCompletionMessage{
