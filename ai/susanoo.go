@@ -31,8 +31,8 @@ type (
 	}
 
 	SusanooTaskRequest struct {
-		Messages []core.GeneralChatCompletionMessage `json:"messages"`
-		Params   map[string]any                      `json:"params"`
+		Messages []core.Message `json:"messages"`
+		Params   map[string]any `json:"params"`
 	}
 
 	SusanooTaskResponse struct {
@@ -59,7 +59,7 @@ type (
 	}
 )
 
-func (s *Instant) SusanooRawRequest(ctx context.Context, messages []core.GeneralChatCompletionMessage, params map[string]any) (*SusanooTaskResultResponse, error) {
+func (s *Instant) SusanooRawRequest(ctx context.Context, messages []core.Message, params map[string]any) (*SusanooTaskResultResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 

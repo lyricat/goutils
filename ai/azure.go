@@ -107,7 +107,9 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 		r := &core.Result{Text: *resp.Choices[0].Message.Content}
 		r.Usage.InputTokens = int(*resp.Usage.PromptTokens)
 		r.Usage.OutputTokens = int(*resp.Usage.CompletionTokens)
-		r.Usage.CachedTokens = int(*resp.Usage.PromptTokensDetails.CachedTokens)
+		if resp.Usage.PromptTokensDetails != nil {
+			r.Usage.CacheInputTokens = int(*resp.Usage.PromptTokensDetails.CachedTokens)
+		}
 
 		resultChan <- struct {
 			resp *core.Result

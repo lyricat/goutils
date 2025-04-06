@@ -37,6 +37,10 @@ type (
 		AwsBedrockModelArn          string
 		AwsBedrockEmbeddingModelArn string
 
+		// anthropic
+		AnthropicAPIKey string
+		AnthropicModel  string
+
 		// susanoo
 		SusanooAPIBase string
 		SusanooAPIKey  string
@@ -46,16 +50,18 @@ type (
 		Debug bool
 	}
 
-	GeneralChatCompletionMessage struct {
+	Message struct {
 		Role        string `json:"role"`
 		Content     string `json:"content"`
 		EnableCache bool   `json:"enable_cache,omitempty"`
 	}
 
 	ResultUsage struct {
-		InputTokens  int `json:"input_tokens"`
-		OutputTokens int `json:"output_tokens"`
-		CachedTokens int `json:"cached_tokens"`
+		InputTokens              int `json:"input_tokens"`
+		OutputTokens             int `json:"output_tokens"`
+		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+		CacheInputTokens         int `json:"cache_input_tokens"`
 	}
 
 	Result struct {
@@ -65,22 +71,23 @@ type (
 	}
 
 	AIInstant interface {
-		RawRequest(ctx context.Context, messages []GeneralChatCompletionMessage) (*Result, error)
-		RawRequestWithParams(ctx context.Context, messages []GeneralChatCompletionMessage, params map[string]any) (*Result, error)
+		RawRequest(ctx context.Context, messages []Message) (*Result, error)
+		RawRequestWithParams(ctx context.Context, messages []Message, params map[string]any) (*Result, error)
 		OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*Result, error)
 	}
 )
 
 const (
-	ProviderAzure    = "azure"
-	ProviderOpenAI   = "openai"
-	ProviderBedrock  = "bedrock"
-	ProviderSusanoo  = "susanoo"
-	ProviderDeepseek = "deepseek"
-	ProviderXAI      = "xai"
-	ProviderGemini   = "gemini"
+	ProviderAzure     = "azure"
+	ProviderOpenAI    = "openai"
+	ProviderBedrock   = "bedrock"
+	ProviderSusanoo   = "susanoo"
+	ProviderDeepseek  = "deepseek"
+	ProviderXAI       = "xai"
+	ProviderGemini    = "gemini"
+	ProviderAnthropic = "anthropic"
 )
 
-func (m GeneralChatCompletionMessage) Pretty() string {
+func (m Message) Pretty() string {
 	return fmt.Sprintf("{ Role: '%s', Content: '%s' }", m.Role, m.Content)
 }

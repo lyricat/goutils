@@ -61,7 +61,7 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 		r.Usage.InputTokens = resp.Usage.PromptTokens
 		r.Usage.OutputTokens = resp.Usage.CompletionTokens
 		if resp.Usage.PromptTokensDetails != nil {
-			r.Usage.CachedTokens = resp.Usage.PromptTokensDetails.CachedTokens
+			r.Usage.CacheInputTokens = resp.Usage.PromptTokensDetails.CachedTokens
 		}
 
 		resultChan <- struct {

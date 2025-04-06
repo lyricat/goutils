@@ -113,11 +113,11 @@ func (s *Instant) BedrockRawRequest(ctx context.Context, messages []BedRockClaud
 		result := &core.Result{
 			Text: r.Content[0].Text,
 		}
-		if r.Usage.CacheCreationInputTokens > 0 || r.Usage.CacheReadInputTokens > 0 {
-			result.Usage.CachedTokens = r.Usage.CacheCreationInputTokens + r.Usage.CacheReadInputTokens
-		}
 		result.Usage.InputTokens = r.Usage.InputTokens
 		result.Usage.OutputTokens = r.Usage.OutputTokens
+
+		result.Usage.CacheInputTokens = r.Usage.CacheCreationInputTokens
+		result.Usage.CacheReadInputTokens = r.Usage.CacheReadInputTokens
 
 		resultChan <- struct {
 			resp *core.Result

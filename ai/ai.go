@@ -69,11 +69,11 @@ func New(cfg core.Config) *Instant {
 	}
 }
 
-func (s *Instant) RawRequest(ctx context.Context, messages []core.GeneralChatCompletionMessage) (*core.Result, error) {
+func (s *Instant) RawRequest(ctx context.Context, messages []core.Message) (*core.Result, error) {
 	return s.RawRequestWithParams(ctx, messages, nil)
 }
 
-func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.GeneralChatCompletionMessage, params map[string]any) (*core.Result, error) {
+func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Message, params map[string]any) (*core.Result, error) {
 	if s.cfg.Debug {
 		slog.Info("[goutils.ai] RawRequest messages:")
 		for _, message := range messages {
@@ -153,6 +153,27 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 			return ret, err
 		}
 
+	case core.ProviderAnthropic:
+		_messages := make([]AnthropicChatMessage, 0, len(messages))
+		for _, message := range messages {
+			m := AnthropicChatMessage{
+				Role: message.Role,
+				Content: []AnthropicMessageContent{
+					{
+						Type: "text",
+						Text: message.Content,
+					},
+				},
+			}
+			if message.EnableCache {
+				m.Content[0].CacheControl = &AnthropicCacheControl{
+					Type: "ephemeral",
+				}
+			}
+			_messages = append(_messages, m)
+		}
+		ret, err = s.AnthropicRawRequest(ctx, _messages)
+
 	case core.ProviderSusanoo:
 		resp, err := s.SusanooRawRequest(ctx, messages, params)
 		if err != nil {
@@ -187,7 +208,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Gene
 }
 
 func (s *Instant) OneTimeRequestWithParams(ctx context.Context, content string, params map[string]any) (*core.Result, error) {
-	resp, err := s.RawRequestWithParams(ctx, []core.GeneralChatCompletionMessage{
+	resp, err := s.RawRequestWithParams(ctx, []core.Message{
 		{
 			Role:    openai.ChatMessageRoleUser,
 			Content: content,
@@ -226,9 +247,9 @@ func (s *Instant) MultipleSteps(ctx context.Context, params core.ChainParams) (*
 
 func (s *Instant) CallInChain(ctx context.Context, params core.ChainParams) (*core.Result, error) {
 	ret := &core.Result{}
-	conv := make([]core.GeneralChatCompletionMessage, 0)
+	conv := make([]core.Message, 0)
 	for i := 0; i < len(params.Steps)-1; i++ {
-		conv = append(conv, core.GeneralChatCompletionMessage{
+		conv = append(conv, core.Message{
 			Role:    openai.ChatMessageRoleUser,
 			Content: params.Steps[i].Instruction,
 		})
@@ -238,14 +259,14 @@ func (s *Instant) CallInChain(ctx context.Context, params core.ChainParams) (*co
 			return nil, err
 		}
 
-		conv = append(conv, core.GeneralChatCompletionMessage{
+		conv = append(conv, core.Message{
 			Role:    openai.ChatMessageRoleAssistant,
 			Content: resp.Text,
 		})
 	}
 
 	finalStep := params.Steps[len(params.Steps)-1]
-	conv = append(conv, core.GeneralChatCompletionMessage{
+	conv = append(conv, core.Message{
 		Role:    openai.ChatMessageRoleUser,
 		Content: finalStep.Instruction,
 	})
