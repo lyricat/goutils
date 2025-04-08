@@ -50,6 +50,11 @@ type (
 		Debug bool
 	}
 
+	RawRequestOptions struct {
+		UseJSON bool
+		Model   string
+	}
+
 	Message struct {
 		Role        string `json:"role"`
 		Content     string `json:"content"`

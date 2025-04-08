@@ -53,7 +53,7 @@ const (
 	ChatMessageRoleAssistant = "assistant"
 )
 
-func (s *Instant) BedrockRawRequest(ctx context.Context, messages []BedRockClaudeChatMessage) (*core.Result, error) {
+func (s *Instant) BedrockRawRequest(ctx context.Context, messages []BedRockClaudeChatMessage, _opts *core.RawRequestOptions) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 

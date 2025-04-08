@@ -84,6 +84,20 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 	var ret = &core.Result{}
 	var err error
 
+	_opts := &core.RawRequestOptions{}
+	if params != nil {
+		if val, ok := params["format"]; ok {
+			if val == "json" {
+				_opts.UseJSON = true
+			}
+		}
+		if val, ok := params["model"]; ok {
+			if val != nil && val != "" {
+				_opts.Model = val.(string)
+			}
+		}
+	}
+
 	switch s.cfg.Provider {
 	case core.ProviderOpenAI, core.ProviderXAI, core.ProviderDeepseek, core.ProviderGemini:
 		_messages := make([]openai.ChatCompletionMessage, 0, len(messages))
@@ -93,12 +107,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 				Content: message.Content,
 			})
 		}
-		_opts := &OpenAIRawRequestOptions{}
-		if val, ok := params["format"]; ok {
-			if val == "json" {
-				_opts.UseJSON = true
-			}
-		}
+
 		ret, err = s.OpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
 			return ret, err
@@ -117,12 +126,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 				})
 			}
 		}
-		_opts := &AzureRawRequestOptions{}
-		if val, ok := params["format"]; ok {
-			if val == "json" {
-				_opts.UseJSON = true
-			}
-		}
+
 		ret, err = s.AzureOpenAIRawRequest(ctx, _messages, _opts)
 		if err != nil {
 			return ret, err
@@ -148,7 +152,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 			// }
 			_messages = append(_messages, m)
 		}
-		ret, err = s.BedrockRawRequest(ctx, _messages)
+		ret, err = s.BedrockRawRequest(ctx, _messages, _opts)
 		if err != nil {
 			return ret, err
 		}
@@ -172,14 +176,14 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 			}
 			_messages = append(_messages, m)
 		}
-		ret, err = s.AnthropicRawRequest(ctx, _messages)
+		ret, err = s.AnthropicRawRequest(ctx, _messages, _opts)
 
 	case core.ProviderSusanoo:
 		resp, err := s.SusanooRawRequest(ctx, messages, params)
 		if err != nil {
 			return nil, err
 		}
-		if val, ok := params["format"]; ok && val == "json" {
+		if _opts.UseJSON {
 			ret.Json = resp.Data.Result
 			buf, err := json.Marshal(ret.Json)
 			if err != nil {

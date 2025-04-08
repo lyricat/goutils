@@ -59,7 +59,7 @@ type (
 	}
 )
 
-func (s *Instant) AnthropicRawRequest(ctx context.Context, messages []AnthropicChatMessage) (*core.Result, error) {
+func (s *Instant) AnthropicRawRequest(ctx context.Context, messages []AnthropicChatMessage, _opts *core.RawRequestOptions) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 

@@ -11,13 +11,7 @@ import (
 	"github.com/lyricat/goutils/ai/core"
 )
 
-type (
-	AzureRawRequestOptions struct {
-		UseJSON bool
-	}
-)
-
-func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification, opts *AzureRawRequestOptions) (*core.Result, error) {
+func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai.ChatRequestMessageClassification, opts *core.RawRequestOptions) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
@@ -27,6 +21,7 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 	})
 
 	go func() {
+
 		payload := azopenai.ChatCompletionsOptions{
 			Messages:       messages,
 			DeploymentName: &s.cfg.AzureOpenAIModel,

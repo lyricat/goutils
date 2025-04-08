@@ -11,13 +11,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-type (
-	OpenAIRawRequestOptions struct {
-		UseJSON bool
-	}
-)
-
-func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *OpenAIRawRequestOptions) (*core.Result, error) {
+func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *core.RawRequestOptions) (*core.Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
@@ -30,6 +24,17 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 		payload := openai.ChatCompletionRequest{
 			Model:    s.cfg.OpenAIModel,
 			Messages: messages,
+		}
+
+		if opts != nil {
+			if opts.UseJSON && supportJSONResponse(s.cfg.AzureOpenAIModel) {
+				payload.ResponseFormat = &openai.ChatCompletionResponseFormat{
+					Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+				}
+			}
+			if opts != nil && opts.Model != "" {
+				payload.Model = opts.Model
+			}
 		}
 
 		if opts != nil {
