@@ -64,6 +64,15 @@ func (a *JSONList) ToUint64Array() []uint64 {
 	return arr
 }
 
+func (a *JSONList) Contains(item interface{}) bool {
+	for _, item := range *a {
+		if item == item {
+			return true
+		}
+	}
+	return false
+}
+
 func NewJSONMap() JSONMap {
 	return make(JSONMap)
 }
