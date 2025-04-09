@@ -39,6 +39,11 @@ func Ban(params BanParams) func(next http.Handler) http.Handler {
 			"/phpunit",
 			"/settings.py",
 			"/application.properties",
+			"php.ini",
+			"info.php",
+			".htaccess",
+			"config.ini",
+			"wp-config",
 		}
 	}
 

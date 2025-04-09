@@ -46,8 +46,8 @@ type (
 
 func New(cfg Config, rdb *redis.Client) *Client {
 	twitterEndpoint := oauth2.Endpoint{
-		AuthURL:  "https://twitter.com/i/oauth2/authorize",
-		TokenURL: "https://api.twitter.com/2/oauth2/token",
+		AuthURL:  "https://x.com/i/oauth2/authorize",
+		TokenURL: "https://api.x.com/2/oauth2/token",
 	}
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.ClientID,
@@ -127,7 +127,7 @@ func (c *Client) RefreshAccessToken(ctx context.Context, token *oauth2.Token) (*
 func (c *Client) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserResponse, error) {
 	client := c.oauthConfig.Client(ctx, token)
 
-	req, err := http.NewRequest("GET", "https://api.twitter.com/2/users/me?user.fields=profile_image_url", nil)
+	req, err := http.NewRequest("GET", "https://api.x.com/2/users/me?user.fields=profile_image_url", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (c *Client) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserRes
 func (c *Client) PostTweet(ctx context.Context, token *oauth2.Token, tweet string) (string, error) {
 	client := c.oauthConfig.Client(ctx, token)
 
-	endpoint := "https://api.twitter.com/2/tweets"
+	endpoint := "https://api.x.com/2/tweets"
 	payload := map[string]string{"text": tweet}
 	body, err := json.Marshal(payload)
 	if err != nil {

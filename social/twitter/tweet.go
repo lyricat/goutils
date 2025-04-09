@@ -53,7 +53,7 @@ func (c *Client) GetTweetByID(ctx context.Context, token *oauth2.Token, tweetID 
 }
 
 func (c *Client) GetTweetsByIDs(ctx context.Context, token *oauth2.Token, tweetIDs []string) (*TweetsResponse, error) {
-	url := "https://api.twitter.com/2/tweets"
+	url := "https://api.x.com/2/tweets"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
