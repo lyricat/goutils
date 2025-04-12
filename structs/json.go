@@ -116,6 +116,11 @@ func (a *JSONMap) GetString(key string) string {
 	if val, ok := (*a)[key]; ok {
 		if strVal, ok := val.(string); ok {
 			return strVal
+		} else {
+			// convert to json forcefully
+			if jsonString, err := json.Marshal(val); err == nil {
+				return string(jsonString)
+			}
 		}
 	}
 	return ""

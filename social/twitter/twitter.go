@@ -85,7 +85,9 @@ func (c *Client) ExchangeTokensWithCode(ctx context.Context, code, state string)
 		return nil, err
 	}
 
-	c.rdb.Del(ctx, key)
+	if c.rdb != nil {
+		c.rdb.Del(ctx, key)
+	}
 
 	return token, nil
 }
@@ -95,7 +97,9 @@ func (c *Client) GetAuthURL(ctx context.Context, state string) string {
 	codeChallenge := generateCodeChallenge(codeVerifier)
 
 	key := fmt.Sprintf("user_token:twitter:%s", state)
-	c.rdb.Set(ctx, key, codeVerifier, time.Minute*3)
+	if c.rdb != nil {
+		c.rdb.Set(ctx, key, codeVerifier, time.Minute*3)
+	}
 
 	// with RedirectURL, code_challenge and code_challenge_method
 	opts := []oauth2.AuthCodeOption{

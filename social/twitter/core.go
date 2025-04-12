@@ -109,6 +109,29 @@ type (
 			Tweets []TweetObject `json:"tweets"`
 		} `json:"includes"`
 	}
+
+	SearchIncludes struct {
+		Users []User `json:"users"`
+	}
+
+	SearchResponse struct {
+		Data     []TweetObject  `json:"data"`
+		Includes SearchIncludes `json:"includes"`
+		Meta     SearchMetadata `json:"meta"`
+		Errors   []struct {     // Handle potential API errors
+			Message string `json:"message"`
+			Detail  string `json:"detail"`
+			Title   string `json:"title"`
+			Type    string `json:"type"`
+		} `json:"errors"`
+	}
+
+	SearchMetadata struct {
+		NewestID    string `json:"newest_id"`
+		OldestID    string `json:"oldest_id"`
+		ResultCount int    `json:"result_count"`
+		NextToken   string `json:"next_token"`
+	}
 )
 
 func (t *TweetObject) HasReferencedTweets() bool {
