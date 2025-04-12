@@ -111,7 +111,8 @@ type (
 	}
 
 	SearchIncludes struct {
-		Users []User `json:"users"`
+		Users  []User        `json:"users"`
+		Tweets []TweetObject `json:"tweets"`
 	}
 
 	SearchResponse struct {
