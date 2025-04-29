@@ -27,7 +27,7 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 		}
 
 		if opts != nil {
-			if opts.UseJSON && supportJSONResponse(s.cfg.AzureOpenAIModel) {
+			if opts.Format == core.FormatJSON && supportJSONResponse(s.cfg.OpenAIModel) {
 				payload.ResponseFormat = &openai.ChatCompletionResponseFormat{
 					Type: openai.ChatCompletionResponseFormatTypeJSONObject,
 				}
@@ -38,7 +38,7 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 		}
 
 		if opts != nil {
-			if opts.UseJSON && supportJSONResponse(s.cfg.OpenAIModel) {
+			if opts.Format == core.FormatJSON && supportJSONResponse(s.cfg.OpenAIModel) {
 				payload.ResponseFormat = &openai.ChatCompletionResponseFormat{
 					Type: openai.ChatCompletionResponseFormatTypeJSONObject,
 				}

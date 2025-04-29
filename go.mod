@@ -13,6 +13,7 @@ require (
 	golang.org/x/crypto v0.31.0
 	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
 	google.golang.org/grpc v1.69.0
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.25.10
 	gorm.io/plugin/dbresolver v1.5.0
 )

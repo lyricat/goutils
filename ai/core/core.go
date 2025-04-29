@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+const (
+	FormatJSON = "json"
+	FormatYAML = "yaml"
+)
+
 type (
 	ChainParamsStep struct {
 		Input       string
@@ -51,8 +56,8 @@ type (
 	}
 
 	RawRequestOptions struct {
-		UseJSON bool
-		Model   string
+		Format string
+		Model  string
 	}
 
 	Message struct {

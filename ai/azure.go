@@ -28,7 +28,7 @@ func (s *Instant) AzureOpenAIRawRequest(ctx context.Context, messages []azopenai
 		}
 
 		if opts != nil {
-			if opts.UseJSON && supportJSONResponse(s.cfg.AzureOpenAIModel) {
+			if opts.Format == core.FormatJSON && supportJSONResponse(s.cfg.AzureOpenAIModel) {
 				payload.ResponseFormat = &azopenai.ChatCompletionsJSONResponseFormat{}
 			}
 		}

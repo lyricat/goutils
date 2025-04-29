@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"regexp"
-	"strings"
 
 	"github.com/lyricat/goutils/ai/core"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -88,7 +87,9 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 	if params != nil {
 		if val, ok := params["format"]; ok {
 			if val == "json" {
-				_opts.UseJSON = true
+				_opts.Format = core.FormatJSON
+			} else if val == "yaml" {
+				_opts.Format = core.FormatYAML
 			}
 		}
 		if val, ok := params["model"]; ok {
@@ -183,9 +184,16 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 		if err != nil {
 			return nil, err
 		}
-		if _opts.UseJSON {
+		if _opts.Format == core.FormatJSON {
 			ret.Json = resp.Data.Result
 			buf, err := json.Marshal(ret.Json)
+			if err != nil {
+				ret.Text = fmt.Sprintf("%+v", ret.Json)
+			}
+			ret.Text = string(buf)
+		} else if _opts.Format == core.FormatYAML {
+			ret.Json = resp.Data.Result
+			buf, err := yaml.Marshal(ret.Json)
 			if err != nil {
 				ret.Text = fmt.Sprintf("%+v", ret.Json)
 			}
@@ -300,78 +308,6 @@ func (s *Instant) CallInChain(ctx context.Context, params core.ChainParams) (*co
 
 	ret.Text = resp.Text
 	return ret, nil
-}
-
-func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys ...string) (map[string]any, error) {
-	// try to parse the response
-	var resp map[string]any
-	if err := json.Unmarshal([]byte(input), &resp); err != nil {
-		if s.cfg.Debug {
-			slog.Warn("[goutils.ai] failed to get json by calling json.Unmarshal, let's try to extract", "input", input, "error", err)
-		}
-
-		// use regex to extract the json part
-		// it could be multiple lines.
-		// this regex will find the smallest substring that starts with { and ends with }, capturing everything in between—even if it spans multiple lines.
-		re := regexp.MustCompile(`(?s)\{.*\}`)
-		input = re.FindString(input)
-		// replace \\n -> \n
-		input = regexp.MustCompile(`\\n`).ReplaceAllString(input, "\n")
-		input = regexp.MustCompile(`\n`).ReplaceAllString(input, "")
-		input = regexp.MustCompile(`\"`).ReplaceAllString(input, "\"")
-
-		if err := json.Unmarshal([]byte(input), &resp); err != nil {
-			if s.cfg.Debug {
-				slog.Warn("[goutils.ai] failed to extract json", "input", input, "error", err)
-			}
-
-			// try to extract json from markdown
-			if err := s.GrabJsonOutputFromMd(ctx, input, &resp); err != nil {
-				if s.cfg.Debug {
-					slog.Error("[goutils.ai] failed to extract json from md", "input", input, "error", err)
-				}
-				return nil, err
-			}
-		}
-	}
-
-	if len(outputKeys) == 0 {
-		return resp, nil
-	}
-
-	// check if the response is valid
-	outputs := make(map[string]any)
-	for _, outputKey := range outputKeys {
-		if val, ok := resp[outputKey]; !ok || val == "" {
-			return nil, nil
-		}
-		outputs[outputKey] = resp[outputKey]
-	}
-
-	return outputs, nil
-}
-
-func (s *Instant) GrabJsonOutputFromMd(ctx context.Context, input string, ptrOutput interface{}) error {
-	input = strings.TrimSpace(input)
-
-	if strings.Contains(input, "```json") {
-		trimed, err := extractJSONFromMarkdown(input)
-		if err != nil {
-			if s.cfg.Debug {
-				slog.Warn("[goutils.ai] failed to extract json from md", "error", err)
-			}
-		} else {
-			input = trimed
-		}
-	}
-
-	if err := json.Unmarshal([]byte(input), ptrOutput); err != nil {
-		if s.cfg.Debug {
-			slog.Warn("[goutils.ai] failed to unmarshal json from md", "input", input, "error", err)
-		}
-		return err
-	}
-	return nil
 }
 
 func (s *Instant) GetEmbeddings(ctx context.Context, input []string) ([]float32, error) {
