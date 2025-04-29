@@ -33,6 +33,10 @@ type (
 		DownloadReferrerHost string
 	}
 
+	SyncToReplicasInput struct {
+		IsPublic bool
+	}
+
 	Attachment struct {
 		ID               uint64 `json:"id"`
 		OwnerID          uint64 `json:"owner_id"` // an abstract owner who owns this attachment
@@ -96,6 +100,12 @@ type (
 		// LIMIT @limit;
 		GetAttachmentsByStatus(ctx context.Context, status int, limit uint64) ([]*Attachment, error)
 
+		// SELECT * FROM @@table
+		// WHERE id > @sinceID
+		// ORDER BY id ASC
+		// LIMIT @limit;
+		GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) ([]*Attachment, error)
+
 		// UPDATE @@table
 		//  {{set}}
 		//   hash_id = @att.HashID,
@@ -112,6 +122,8 @@ type (
 		UploadFile(ctx context.Context, input *UploadAttachmentInput) (*Attachment, error)
 		GetAttachment(ctx context.Context, id uint64) (*Attachment, error)
 		GetFileMimeType(file io.ReadSeeker, ext string) (string, error)
+		GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) ([]*Attachment, error)
 		DownloadRemoteFile(ctx context.Context, input *UploadAttachmentInput) (string, error)
+		SyncToReplicas(ctx context.Context, attachment *Attachment, input *SyncToReplicasInput) error
 	}
 )

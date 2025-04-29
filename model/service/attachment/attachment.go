@@ -3,13 +3,8 @@ package attachment
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"log/slog"
 	"net/http"
@@ -22,7 +17,6 @@ import (
 	"github.com/lyricat/goutils/crypto"
 	"github.com/lyricat/goutils/model/core"
 	"github.com/lyricat/goutils/storage"
-	"github.com/nickalie/go-webpbin"
 
 	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
@@ -44,11 +38,12 @@ type Config struct {
 type AttachmentService struct {
 	cfg         Config
 	storage     *storage.Storage
+	replicas    *storage.Storage
 	hashInst    *hashids.HashID
 	attachments core.AttachmentStore
 }
 
-func New(cfg Config, attachments core.AttachmentStore, storage *storage.Storage) *AttachmentService {
+func New(cfg Config, attachments core.AttachmentStore, storage, replicas *storage.Storage) *AttachmentService {
 	hd := hashids.NewData()
 	hd.Salt = cfg.HashIDSalt
 	hd.MinLength = 8
@@ -62,6 +57,7 @@ func New(cfg Config, attachments core.AttachmentStore, storage *storage.Storage)
 	return &AttachmentService{
 		cfg:         cfg,
 		storage:     storage,
+		replicas:    replicas,
 		hashInst:    hashInst,
 		attachments: attachments,
 	}
@@ -69,6 +65,10 @@ func New(cfg Config, attachments core.AttachmentStore, storage *storage.Storage)
 
 func (s *AttachmentService) GetAttachment(ctx context.Context, id uint64) (*core.Attachment, error) {
 	return s.attachments.GetAttachment(ctx, id)
+}
+
+func (s *AttachmentService) GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) ([]*core.Attachment, error) {
+	return s.attachments.GetAttachmentsSinceID(ctx, sinceID, limit)
 }
 
 func (s *AttachmentService) UploadFile(ctx context.Context, input *core.UploadAttachmentInput) (*core.Attachment, error) {
@@ -261,6 +261,43 @@ func (s *AttachmentService) DownloadRemoteFile(ctx context.Context, input *core.
 	return att.ViewURL, nil
 }
 
+func (s *AttachmentService) SyncToReplicas(ctx context.Context, attachment *core.Attachment, input *core.SyncToReplicasInput) error {
+
+	if s.replicas != nil {
+		// download the file from storage
+		reader, err := s.storage.GetAsReader(ctx, attachment.Pathname, attachment.Filename)
+		if err != nil {
+			return err
+		}
+
+		// io.Reader to io.ReadSeeker
+		rs, ok := reader.(io.ReadSeeker)
+		if !ok {
+			return fmt.Errorf("reader is not an io.ReadSeeker")
+		}
+
+		// upload the file to replicas
+		acl := storage.ACLPrivate
+		if input.IsPublic {
+			acl = storage.ACLPublicRead
+		}
+
+		if err := s.replicas.WriteAsReader(ctx, &storage.WriteAsReaderInput{
+			Filepath: attachment.Pathname,
+			Filename: attachment.Filename,
+			File:     rs,
+			Size:     attachment.Size,
+			MimeType: attachment.MimeType,
+			ACL:      acl,
+		}); err != nil {
+			slog.Error("[goutils.attachmentz] sync to replicas failed", "error", err, "attachment.id", attachment.ID)
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *AttachmentService) GetFileMimeType(file io.ReadSeeker, ext string) (string, error) {
 	// Only the first 512 bytes are used to sniff the content type.
 	buffer := make([]byte, 512)
@@ -293,61 +330,4 @@ func (s *AttachmentService) GetFileMimeType(file io.ReadSeeker, ext string) (str
 		}
 	}
 	return strings.ToLower(contentType), nil
-}
-
-func GuessExtByMimeType(mimeType string) string {
-	if mimeType == "" {
-		return ""
-	}
-
-	if strings.HasPrefix(mimeType, "image/jpeg") || strings.HasPrefix(mimeType, "image/jpg") {
-		return ".jpg"
-	} else if strings.HasPrefix(mimeType, "image/png") {
-		return ".png"
-	} else if strings.HasPrefix(mimeType, "image/gif") {
-		return ".gif"
-	} else if strings.HasPrefix(mimeType, "image/webp") {
-		return ".webp"
-	} else if strings.HasPrefix(mimeType, "image/svg") {
-		return ".svg"
-	}
-	return ""
-}
-
-func getFileSha1Sum(file io.ReadSeeker) (string, error) {
-	hasher := sha1.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return "", err
-	}
-
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", err
-	}
-
-	md5sum := hex.EncodeToString(hasher.Sum(nil))
-	return md5sum, nil
-}
-
-func ConvertStream2Webp(file io.ReadSeeker, ext string) (*bytes.Buffer, error) {
-	var img image.Image
-	var err error
-	if ext == ".jpg" || ext == ".jpeg" {
-		img, err = jpeg.Decode(file)
-		if err != nil {
-			return nil, err
-		}
-	} else if ext == ".png" {
-		img, err = png.Decode(file)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, nil
-	}
-
-	buf := &bytes.Buffer{}
-	if err := webpbin.Encode(buf, img); err != nil {
-		return nil, err
-	}
-	return buf, nil
 }

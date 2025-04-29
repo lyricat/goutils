@@ -207,6 +207,7 @@ type IAttachmentDo interface {
 	GetAttachmentByHashID(ctx context.Context, hashID string) (result *core.Attachment, err error)
 	GetAttachmentByChecksum(ctx context.Context, method string, checksum string) (result *core.Attachment, err error)
 	GetAttachmentsByStatus(ctx context.Context, status int, limit uint64) (result []*core.Attachment, err error)
+	GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) (result []*core.Attachment, err error)
 	UpdateAttachment(ctx context.Context, att *core.Attachment) (err error)
 }
 
@@ -318,6 +319,25 @@ func (a attachmentDo) GetAttachmentsByStatus(ctx context.Context, status int, li
 	params = append(params, status)
 	params = append(params, limit)
 	generateSQL.WriteString("SELECT * FROM attachments WHERE status = ? LIMIT ?; ")
+
+	var executeSQL *gorm.DB
+	executeSQL = a.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// SELECT * FROM @@table
+// WHERE id > @sinceID
+// ORDER BY id ASC
+// LIMIT @limit;
+func (a attachmentDo) GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) (result []*core.Attachment, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, sinceID)
+	params = append(params, limit)
+	generateSQL.WriteString("SELECT * FROM attachments WHERE id > ? ORDER BY id ASC LIMIT ?; ")
 
 	var executeSQL *gorm.DB
 	executeSQL = a.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
