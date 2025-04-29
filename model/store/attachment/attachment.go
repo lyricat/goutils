@@ -11,7 +11,7 @@ import (
 func init() {
 	store.RegistGenerate(
 		gen.Config{
-			OutPath: "store/attachment/dao",
+			OutPath: "model/store/attachment/dao",
 		},
 		func(g *gen.Generator) {
 			g.ApplyInterface(func(core.AttachmentStore) {}, core.Attachment{})

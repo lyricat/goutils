@@ -30,7 +30,7 @@ func newAttachment(db *gorm.DB, opts ...gen.DOOption) attachment {
 	tableName := _attachment.attachmentDo.TableName()
 	_attachment.ALL = field.NewAsterisk(tableName)
 	_attachment.ID = field.NewUint64(tableName, "id")
-	_attachment.UserID = field.NewUint64(tableName, "user_id")
+	_attachment.OwnerID = field.NewUint64(tableName, "owner_id")
 	_attachment.BucketName = field.NewString(tableName, "bucket_name")
 	_attachment.HashID = field.NewString(tableName, "hash_id")
 	_attachment.Size = field.NewInt64(tableName, "size")
@@ -39,7 +39,6 @@ func newAttachment(db *gorm.DB, opts ...gen.DOOption) attachment {
 	_attachment.Filename = field.NewString(tableName, "filename")
 	_attachment.Status = field.NewInt(tableName, "status")
 	_attachment.OriginalMimeType = field.NewString(tableName, "original_mime_type")
-	_attachment.OriginalURL = field.NewString(tableName, "original_url")
 	_attachment.Checksum = field.NewString(tableName, "checksum")
 	_attachment.ChecksumMethod = field.NewString(tableName, "checksum_method")
 	_attachment.CreatedAt = field.NewTime(tableName, "created_at")
@@ -55,7 +54,7 @@ type attachment struct {
 
 	ALL              field.Asterisk
 	ID               field.Uint64
-	UserID           field.Uint64
+	OwnerID          field.Uint64
 	BucketName       field.String
 	HashID           field.String
 	Size             field.Int64
@@ -64,7 +63,6 @@ type attachment struct {
 	Filename         field.String
 	Status           field.Int
 	OriginalMimeType field.String
-	OriginalURL      field.String
 	Checksum         field.String
 	ChecksumMethod   field.String
 	CreatedAt        field.Time
@@ -86,7 +84,7 @@ func (a attachment) As(alias string) *attachment {
 func (a *attachment) updateTableName(table string) *attachment {
 	a.ALL = field.NewAsterisk(table)
 	a.ID = field.NewUint64(table, "id")
-	a.UserID = field.NewUint64(table, "user_id")
+	a.OwnerID = field.NewUint64(table, "owner_id")
 	a.BucketName = field.NewString(table, "bucket_name")
 	a.HashID = field.NewString(table, "hash_id")
 	a.Size = field.NewInt64(table, "size")
@@ -95,7 +93,6 @@ func (a *attachment) updateTableName(table string) *attachment {
 	a.Filename = field.NewString(table, "filename")
 	a.Status = field.NewInt(table, "status")
 	a.OriginalMimeType = field.NewString(table, "original_mime_type")
-	a.OriginalURL = field.NewString(table, "original_url")
 	a.Checksum = field.NewString(table, "checksum")
 	a.ChecksumMethod = field.NewString(table, "checksum_method")
 	a.CreatedAt = field.NewTime(table, "created_at")
@@ -116,9 +113,9 @@ func (a *attachment) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (a *attachment) fillFieldMap() {
-	a.fieldMap = make(map[string]field.Expr, 15)
+	a.fieldMap = make(map[string]field.Expr, 14)
 	a.fieldMap["id"] = a.ID
-	a.fieldMap["user_id"] = a.UserID
+	a.fieldMap["owner_id"] = a.OwnerID
 	a.fieldMap["bucket_name"] = a.BucketName
 	a.fieldMap["hash_id"] = a.HashID
 	a.fieldMap["size"] = a.Size
@@ -127,7 +124,6 @@ func (a *attachment) fillFieldMap() {
 	a.fieldMap["filename"] = a.Filename
 	a.fieldMap["status"] = a.Status
 	a.fieldMap["original_mime_type"] = a.OriginalMimeType
-	a.fieldMap["original_url"] = a.OriginalURL
 	a.fieldMap["checksum"] = a.Checksum
 	a.fieldMap["checksum_method"] = a.ChecksumMethod
 	a.fieldMap["created_at"] = a.CreatedAt
@@ -211,11 +207,12 @@ type IAttachmentDo interface {
 	GetAttachmentByHashID(ctx context.Context, hashID string) (result *core.Attachment, err error)
 	GetAttachmentByChecksum(ctx context.Context, method string, checksum string) (result *core.Attachment, err error)
 	GetAttachmentsByStatus(ctx context.Context, status int, limit uint64) (result []*core.Attachment, err error)
+	GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) (result []*core.Attachment, err error)
 	UpdateAttachment(ctx context.Context, att *core.Attachment) (err error)
 }
 
 // INSERT INTO @@table
-// (user_id, bucket_name, hash_id,
+// (owner_id, bucket_name, hash_id,
 //
 //	size, mime_type, pathname, filename,
 //	status,
@@ -227,7 +224,7 @@ type IAttachmentDo interface {
 // VALUES
 // (
 //
-//	@att.UserID, @att.BucketName, @att.HashID,
+//	@att.OwnerID, @att.BucketName, @att.HashID,
 //	@att.Size, @att.MimeType, @att.Pathname, @att.Filename,
 //	@att.Status,
 //	@att.OriginalMimeType,
@@ -322,6 +319,25 @@ func (a attachmentDo) GetAttachmentsByStatus(ctx context.Context, status int, li
 	params = append(params, status)
 	params = append(params, limit)
 	generateSQL.WriteString("SELECT * FROM attachments WHERE status = ? LIMIT ?; ")
+
+	var executeSQL *gorm.DB
+	executeSQL = a.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// SELECT * FROM @@table
+// WHERE id > @sinceID
+// ORDER BY id ASC
+// LIMIT @limit;
+func (a attachmentDo) GetAttachmentsSinceID(ctx context.Context, sinceID uint64, limit uint64) (result []*core.Attachment, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, sinceID)
+	params = append(params, limit)
+	generateSQL.WriteString("SELECT * FROM attachments WHERE id > ? ORDER BY id ASC LIMIT ?; ")
 
 	var executeSQL *gorm.DB
 	executeSQL = a.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
