@@ -15,6 +15,8 @@ type BanParams struct {
 	Rdb            *redis.Client
 	MaliciousPaths []string
 	RdbKey         string
+	IPBlacklist    []string
+	ipBlacklistSet map[string]bool
 }
 
 func Ban(params BanParams) func(next http.Handler) http.Handler {
@@ -47,10 +49,19 @@ func Ban(params BanParams) func(next http.Handler) http.Handler {
 		}
 	}
 
+	for _, ip := range params.IPBlacklist {
+		params.ipBlacklistSet[ip] = true
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := context.Background()
 			ip := util.GetRemoteIP(r)
+
+			if _, ok := params.ipBlacklistSet[ip]; ok {
+				http.Error(w, "", http.StatusNotFound)
+				return
+			}
 
 			key := fmt.Sprintf(params.RdbKey, ip)
 

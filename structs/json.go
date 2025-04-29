@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 
@@ -68,7 +67,6 @@ func (a *JSONList) ToUint64Array() []uint64 {
 func (a *JSONList) Contains(item interface{}) bool {
 	for _, _item := range *a {
 		if item == _item {
-			fmt.Println("item found", _item, item)
 			return true
 		}
 	}
