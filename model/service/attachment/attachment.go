@@ -271,9 +271,9 @@ func (s *AttachmentService) SyncToReplicas(ctx context.Context, attachment *core
 		}
 
 		// io.Reader to io.ReadSeeker
-		rs, ok := reader.(io.ReadSeeker)
-		if !ok {
-			return fmt.Errorf("reader is not an io.ReadSeeker")
+		rs, size, err := readerToReadSeeker(reader)
+		if err != nil {
+			return err
 		}
 
 		// upload the file to replicas
@@ -286,7 +286,7 @@ func (s *AttachmentService) SyncToReplicas(ctx context.Context, attachment *core
 			Filepath: attachment.Pathname,
 			Filename: attachment.Filename,
 			File:     rs,
-			Size:     attachment.Size,
+			Size:     size,
 			MimeType: attachment.MimeType,
 			ACL:      acl,
 		}); err != nil {

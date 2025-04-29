@@ -1,6 +1,7 @@
 package attachment
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"io"
@@ -38,4 +39,12 @@ func getFileSha1Sum(file io.ReadSeeker) (string, error) {
 
 	md5sum := hex.EncodeToString(hasher.Sum(nil))
 	return md5sum, nil
+}
+
+func readerToReadSeeker(r io.Reader) (io.ReadSeeker, int64, error) {
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	return bytes.NewReader(buf), int64(len(buf)), nil
 }
