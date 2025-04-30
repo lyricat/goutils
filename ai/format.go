@@ -82,41 +82,55 @@ func (s *Instant) GrabJsonOutputFromMd(ctx context.Context, input string, ptrOut
 	return nil
 }
 
-func (s *Instant) GrabYamlOutput(ctx context.Context, input string, outputKeys ...string) (map[string]any, error) {
-	var resp map[string]any
-	if err := yaml.Unmarshal([]byte(input), &resp); err != nil {
+func (s *Instant) GrabYamlOutput(ctx context.Context, input string) (string, error) {
+	respMap, respArray, err := grabYamlAsMapOrArray(input)
+	if err != nil {
 		if s.cfg.Debug {
-			slog.Warn("[goutils.ai] failed to get yaml by calling yaml.Unmarshal, let's try to extract from md", "input", input, "error", err)
+			slog.Warn("[goutils.ai] grabYamlAsMapOrArray failed, let's try to extract from md", "input", input, "error", err)
 		}
 
 		// try to extract yaml from markdown
-		if err := s.GrabYamlOutputFromMd(ctx, input, &resp); err != nil {
+		if err := s.GrabYamlOutputFromMd(ctx, input, &respMap, &respArray); err != nil {
 			if s.cfg.Debug {
 				slog.Error("[goutils.ai] failed to extract yaml from md", "input", input, "error", err)
 			}
-			return nil, err
+			return "", err
 		}
 	}
 
-	if len(outputKeys) == 0 {
-		return resp, nil
-	}
-
-	// check if the response is valid
-	outputs := make(map[string]any)
-	for _, outputKey := range outputKeys {
-		if val, ok := resp[outputKey]; !ok || val == "" {
-			// Consider if empty string is a valid value for YAML, unlike the JSON check
-			// For now, mimicking the JSON logic.
-			return nil, nil
+	if respMap != nil {
+		// convert map to yaml
+		yamlBytes, err := yaml.Marshal(respMap)
+		if err != nil {
+			return "", err
 		}
-		outputs[outputKey] = resp[outputKey]
+		return string(yamlBytes), nil
+
+	} else if respArray != nil {
+		// convert array to yaml
+		yamlBytes, err := yaml.Marshal(respArray)
+		if err != nil {
+			return "", err
+		}
+		return string(yamlBytes), nil
 	}
 
-	return outputs, nil
+	return "", nil
 }
 
-func (s *Instant) GrabYamlOutputFromMd(ctx context.Context, input string, ptrOutput interface{}) error {
+func grabYamlAsMapOrArray(input string) (map[string]any, []any, error) {
+	var respDict map[string]any
+	var respArray []any
+	if err := yaml.Unmarshal([]byte(input), &respDict); err != nil {
+		if err := yaml.Unmarshal([]byte(input), &respArray); err != nil {
+			return nil, nil, err
+		}
+		return nil, respArray, nil
+	}
+	return respDict, nil, nil
+}
+
+func (s *Instant) GrabYamlOutputFromMd(ctx context.Context, input string, mapOutput *map[string]any, arrayOutput *[]any) error {
 	input = strings.TrimSpace(input)
 
 	// Support ```yaml
@@ -133,11 +147,19 @@ func (s *Instant) GrabYamlOutputFromMd(ctx context.Context, input string, ptrOut
 	}
 
 	// Perform YAML unmarshaling
-	if err := yaml.Unmarshal([]byte(input), ptrOutput); err != nil {
+	respMap, respArray, err := grabYamlAsMapOrArray(input)
+	if err != nil {
 		if s.cfg.Debug {
 			slog.Warn("[goutils.ai] failed to unmarshal yaml from md", "input", input, "error", err)
 		}
 		return err
 	}
+
+	if respMap != nil {
+		*mapOutput = respMap
+	} else if respArray != nil {
+		*arrayOutput = respArray
+	}
+
 	return nil
 }
