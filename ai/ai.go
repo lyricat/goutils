@@ -100,7 +100,7 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 	}
 
 	switch s.cfg.Provider {
-	case core.ProviderOpenAI, core.ProviderXAI, core.ProviderDeepseek, core.ProviderGemini:
+	case core.ProviderOpenAI, core.ProviderOpenAICustom, core.ProviderXAI, core.ProviderDeepseek, core.ProviderGemini:
 		_messages := make([]openai.ChatCompletionMessage, 0, len(messages))
 		for _, message := range messages {
 			_messages = append(_messages, openai.ChatCompletionMessage{

@@ -88,14 +88,19 @@ type (
 )
 
 const (
-	ProviderAzure     = "azure"
-	ProviderOpenAI    = "openai"
-	ProviderBedrock   = "bedrock"
-	ProviderSusanoo   = "susanoo"
-	ProviderDeepseek  = "deepseek"
-	ProviderXAI       = "xai"
-	ProviderGemini    = "gemini"
+	ProviderOpenAI = "openai"
+	// openai compatible
+	ProviderOpenAICustom = "openai_custom"
+	ProviderDeepseek     = "deepseek"
+	ProviderXAI          = "xai"
+	ProviderGemini       = "gemini"
+	// azure openai
+	ProviderAzure = "azure"
+	// anthropic
 	ProviderAnthropic = "anthropic"
+	ProviderBedrock   = "bedrock"
+	// susanoo
+	ProviderSusanoo = "susanoo"
 )
 
 func (m Message) Pretty() string {

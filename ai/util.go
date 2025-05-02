@@ -18,7 +18,13 @@ func supportJSONResponse(model string) bool {
 }
 
 func IsOpenAICompatible(p string) bool {
-	compatibleProviders := []string{"openai", "deepseek", "xai", "gemini"}
+	compatibleProviders := []string{
+		core.ProviderOpenAI,
+		core.ProviderOpenAICustom,
+		core.ProviderDeepseek,
+		core.ProviderXAI,
+		core.ProviderGemini,
+	}
 	for _, provider := range compatibleProviders {
 		if p == provider {
 			return true
@@ -38,6 +44,8 @@ func createOpenAICompatibleClient(cfg core.Config) (*openai.Client, error) {
 		config.BaseURL = "https://api.x.ai/v1"
 	case core.ProviderGemini:
 		config.BaseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
+	case core.ProviderOpenAICustom:
+		config.BaseURL = cfg.OpenAIAPIBase
 	default:
 		return nil, errors.New("unsupported provider")
 	}
