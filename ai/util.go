@@ -13,7 +13,8 @@ import (
 )
 
 func supportJSONResponse(model string) bool {
-	return strings.HasPrefix(model, "gpt-4") || strings.HasPrefix(model, "gpt-3.5") ||
+	return strings.HasPrefix(model, "gpt-") ||
+		strings.HasPrefix(model, "o3") || strings.HasPrefix(model, "o4") ||
 		strings.HasPrefix(model, "deepseek-chat") || strings.HasPrefix(model, "grok-")
 }
 

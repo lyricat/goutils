@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCompletionMessage, opts *core.RawRequestOptions) (*core.Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*300)
 	defer cancel()
 
 	resultChan := make(chan struct {

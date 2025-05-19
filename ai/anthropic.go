@@ -60,7 +60,7 @@ type (
 )
 
 func (s *Instant) AnthropicRawRequest(ctx context.Context, messages []AnthropicChatMessage, _opts *core.RawRequestOptions) (*core.Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*300)
 	defer cancel()
 
 	resultChan := make(chan struct {
