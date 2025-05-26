@@ -37,14 +37,6 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 			}
 		}
 
-		if opts != nil {
-			if opts.Format == core.FormatJSON && supportJSONResponse(s.cfg.OpenAIModel) {
-				payload.ResponseFormat = &openai.ChatCompletionResponseFormat{
-					Type: openai.ChatCompletionResponseFormatTypeJSONObject,
-				}
-			}
-		}
-
 		resp, err := s.openaiClient.CreateChatCompletion(ctx, payload)
 		if err != nil {
 			resultChan <- struct {
