@@ -12,16 +12,23 @@ import (
 )
 
 type (
-	RerankInputText struct {
+	JinaRerankInputText struct {
 		Model           string   `json:"model"`
 		Query           string   `json:"query"`
 		Documents       []string `json:"documents"`
 		TopN            int      `json:"top_n"`
 		ReturnDocuments bool     `json:"return_documents"`
 	}
+	JinaRerankInput struct {
+		Model           string               `json:"model"`
+		Query           string               `json:"query"`
+		Documents       []RerankInputDocItem `json:"documents"`
+		TopN            int                  `json:"top_n"`
+		ReturnDocuments bool                 `json:"return_documents"`
+	}
 )
 
-func (i2 *RerankInputText) Loads(i1 *RerankInput) {
+func (i2 *JinaRerankInputText) Loads(i1 *RerankInput) {
 	i2.Model = i1.Model
 	for _, item := range i1.Documents {
 		i2.Documents = append(i2.Documents, item.Text)
@@ -31,21 +38,31 @@ func (i2 *RerankInputText) Loads(i1 *RerankInput) {
 	i2.Query = i1.Query
 }
 
+func (i2 *JinaRerankInput) Loads(i1 *RerankInput) {
+	i2.Model = i1.Model
+	i2.Documents = i1.Documents
+	i2.TopN = i1.TopN
+	i2.ReturnDocuments = i1.ReturnDocuments
+	i2.Query = i1.Query
+}
+
 func JinaRerank(ctx context.Context, token, base string, input *RerankInput) (*RerankOutput, error) {
 	var (
-		textInput *RerankInputText
+		textInput *JinaRerankInputText
 		data      []byte
 		err       error
 	)
 	if input.Model == "jina-reranker-v2-base-multilingual" {
-		textInput = &RerankInputText{}
+		textInput = &JinaRerankInputText{}
 		textInput.Loads(input)
 		data, err = json.Marshal(textInput)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		data, err = json.Marshal(input)
+		newInput := &JinaRerankInput{}
+		newInput.Loads(input)
+		data, err = json.Marshal(newInput)
 		if err != nil {
 			return nil, err
 		}

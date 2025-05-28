@@ -2,8 +2,11 @@ package rerank
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/lyricat/goutils/structs"
 )
 
 type (
@@ -34,12 +37,24 @@ type (
 		Results []struct {
 			RelevanceScore float64 `json:"relevance_score"`
 			Index          int     `json:"index"`
+			Document       struct {
+				Text string `json:"text,omitempty"`
+				URL  string `json:"url,omitempty"`
+			} `json:"document,omitempty"`
 		} `json:"results"`
 		Usage struct {
 			TotalTokens int `json:"total_tokens"`
 		} `json:"usage"`
 	}
 )
+
+func (i *RerankInput) ToJSONMap() (structs.JSONMap, error) {
+	js, err := json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	return structs.NewFromJSONString(string(js)), nil
+}
 
 func NewRerank(cfg *Config) *RerankClient {
 	return &RerankClient{
