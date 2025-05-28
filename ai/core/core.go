@@ -11,7 +11,7 @@ const (
 )
 
 const (
-	JINA_API_BASE = "https://api.jina.ai/v1"
+	JINA_API_BASE = "https://api.jina.ai"
 )
 
 type (

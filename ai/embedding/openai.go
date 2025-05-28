@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	OpenAIAPIBase = "https://api.openai.com/v1"
+	OpenAIAPIBase = "https://api.openai.com"
 )
 
 type (
@@ -43,7 +43,7 @@ func OpenAICreateEmbeddings(ctx context.Context, token string, base string, inpu
 	if base == "" {
 		base = OpenAIAPIBase
 	}
-	url := fmt.Sprintf("%s/embeddings", base)
+	url := fmt.Sprintf("%s/v1/embeddings", base)
 	data, err := json.Marshal(openaiInput)
 	if err != nil {
 		return nil, err

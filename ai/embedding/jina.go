@@ -95,7 +95,7 @@ func JinaCreateEmbeddings(ctx context.Context, token, base string, input *Create
 	if base == "" {
 		base = core.JINA_API_BASE
 	}
-	url := fmt.Sprintf("%s/embeddings", base)
+	url := fmt.Sprintf("%s/v1/embeddings", base)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err

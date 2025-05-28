@@ -70,6 +70,10 @@ func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input *CreateEmb
 		input.Provider = pickProviderByModel(input.Model)
 	}
 
+	if input.Provider == "" {
+		return nil, fmt.Errorf("provider not set")
+	}
+
 	var resp *CreateEmbeddingsOutput
 	var err error
 	switch input.Provider {
