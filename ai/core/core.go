@@ -10,6 +10,10 @@ const (
 	FormatYAML = "yaml"
 )
 
+const (
+	JINA_API_BASE = "https://api.jina.ai/v1"
+)
+
 type (
 	ChainParamsStep struct {
 		Input       string
@@ -99,6 +103,8 @@ const (
 	// anthropic
 	ProviderAnthropic = "anthropic"
 	ProviderBedrock   = "bedrock"
+	// jina
+	ProviderJina = "jina"
 	// susanoo
 	ProviderSusanoo = "susanoo"
 )
