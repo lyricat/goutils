@@ -21,15 +21,16 @@ type (
 	}
 
 	CreateEmbeddingsInputItem struct {
-		Text string `json:"text"`
+		Text  string `json:"text,omitempty"`
+		Image string `json:"image,omitempty"`
 	}
 
 	CreateEmbeddingsInput struct {
-		Provider      string          `json:"provider"`
-		Model         string          `json:"model"`
-		Input         []string        `json:"input"`
-		JinaOptions   structs.JSONMap `json:"jina_options"`
-		OpenAIOptions structs.JSONMap `json:"openai_options"`
+		Provider      string                      `json:"provider"`
+		Model         string                      `json:"model"`
+		Input         []CreateEmbeddingsInputItem `json:"input"`
+		JinaOptions   structs.JSONMap             `json:"jina_options"`
+		OpenAIOptions structs.JSONMap             `json:"openai_options"`
 	}
 
 	CreateEmbeddingsOutput struct {
@@ -61,7 +62,7 @@ func NewEmbedding(cfg *Config) *EmbeddingClient {
 	}
 }
 
-func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input CreateEmbeddingsInput) (*CreateEmbeddingsOutput, error) {
+func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input *CreateEmbeddingsInput) (*CreateEmbeddingsOutput, error) {
 	// if provider is not set
 	// look at the model name, and decide which provider to use
 	// else, use the provider in the input
@@ -73,13 +74,9 @@ func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input CreateEmbe
 	var err error
 	switch input.Provider {
 	case "jina":
-		jinaInput := &JinaCreateEmbeddingsInput{}
-		jinaInput.Loads(input)
-		resp, err = JinaCreateEmbeddings(ctx, c.cfg.JinaAPIKey, c.cfg.JinaAPIBase, jinaInput)
+		resp, err = JinaCreateEmbeddings(ctx, c.cfg.JinaAPIKey, c.cfg.JinaAPIBase, input)
 	case "openai":
-		openaiInput := &OpenAICreateEmbeddingsInput{}
-		openaiInput.Loads(input)
-		resp, err = OpenAICreateEmbeddings(ctx, c.cfg.OpenAIAPIKey, c.cfg.OpenAIAPIBase, openaiInput)
+		resp, err = OpenAICreateEmbeddings(ctx, c.cfg.OpenAIAPIKey, c.cfg.OpenAIAPIBase, input)
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", input.Provider)
 	}

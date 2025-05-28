@@ -23,9 +23,11 @@ type (
 	}
 )
 
-func (i2 *OpenAICreateEmbeddingsInput) Loads(i1 CreateEmbeddingsInput) {
+func (i2 *OpenAICreateEmbeddingsInput) Loads(i1 *CreateEmbeddingsInput) {
 	i2.Model = i1.Model
-	i2.Input = i1.Input
+	for _, item := range i1.Input {
+		i2.Input = append(i2.Input, item.Text)
+	}
 	dim := int(i1.OpenAIOptions.GetInt64("dimensions"))
 	i2.Dimensions = &dim
 	if *i2.Dimensions == 0 {
@@ -34,7 +36,10 @@ func (i2 *OpenAICreateEmbeddingsInput) Loads(i1 CreateEmbeddingsInput) {
 	i2.EncodingFormat = "base64"
 }
 
-func OpenAICreateEmbeddings(ctx context.Context, token string, base string, input *OpenAICreateEmbeddingsInput) (*CreateEmbeddingsOutput, error) {
+func OpenAICreateEmbeddings(ctx context.Context, token string, base string, input *CreateEmbeddingsInput) (*CreateEmbeddingsOutput, error) {
+	openaiInput := &OpenAICreateEmbeddingsInput{}
+	openaiInput.Loads(input)
+
 	if base == "" {
 		base = OpenAIAPIBase
 	}

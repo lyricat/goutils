@@ -13,42 +13,89 @@ import (
 
 type (
 	JinaCreateEmbeddingsInput struct {
-		Model         string   `json:"model"`
-		Task          string   `json:"task"`
-		Input         []string `json:"input"`
-		Truncate      bool     `json:"truncate,omitempty"`
-		LateChunking  bool     `json:"late_chunking,omitempty"`
-		Dimensions    int      `json:"dimensions,omitempty"`
-		EmbeddingType string   `json:"embedding_type,omitempty"`
+		Model         string `json:"model"`
+		EmbeddingType string `json:"embedding_type,omitempty"`
+		Dimensions    int    `json:"dimensions,omitempty"`
+		Task          string `json:"task,omitempty"`
+
+		Input        []string `json:"input"`
+		Truncate     bool     `json:"truncate,omitempty"`
+		LateChunking bool     `json:"late_chunking,omitempty"`
+	}
+
+	JinaCreateEmbeddingsClipInput struct {
+		Model         string `json:"model"`
+		EmbeddingType string `json:"embedding_type,omitempty"`
+		Dimensions    int    `json:"dimensions,omitempty"`
+		Task          string `json:"task,omitempty"`
+
+		Input      []CreateEmbeddingsInputItem `json:"input"`
+		Normalized bool                        `json:"normalized,omitempty"`
 	}
 )
 
-func (i2 *JinaCreateEmbeddingsInput) Loads(i1 CreateEmbeddingsInput) {
+func (i2 *JinaCreateEmbeddingsInput) Loads(i1 *CreateEmbeddingsInput) {
+	i2.Model = i1.Model
+	for _, item := range i1.Input {
+		i2.Input = append(i2.Input, item.Text)
+	}
+	i2.Task = i1.JinaOptions.GetString("task")
+	if i2.Task == "" {
+		i2.Task = "text-matching"
+	}
+	if i2.Dimensions == 0 {
+		i2.Dimensions = 1024
+	}
+	i2.EmbeddingType = "base64"
+
+	i2.Truncate = i1.JinaOptions.GetBool("truncate")
+	i2.LateChunking = i1.JinaOptions.GetBool("late_chunking")
+	i2.Dimensions = int(i1.JinaOptions.GetInt64("dimensions"))
+}
+
+func (i2 *JinaCreateEmbeddingsClipInput) Loads(i1 *CreateEmbeddingsInput) {
 	i2.Model = i1.Model
 	i2.Input = i1.Input
 	i2.Task = i1.JinaOptions.GetString("task")
 	if i2.Task == "" {
 		i2.Task = "text-matching"
 	}
-	i2.Truncate = i1.JinaOptions.GetBool("truncate")
-	i2.LateChunking = i1.JinaOptions.GetBool("late_chunking")
 	i2.Dimensions = int(i1.JinaOptions.GetInt64("dimensions"))
+	i2.EmbeddingType = "base64"
+
 	if i2.Dimensions == 0 {
 		i2.Dimensions = 1024
 	}
-	i2.EmbeddingType = "base64"
+	i2.Normalized = i1.JinaOptions.GetBool("normalized")
 }
 
-func JinaCreateEmbeddings(ctx context.Context, token, base string, input *JinaCreateEmbeddingsInput) (*CreateEmbeddingsOutput, error) {
+func JinaCreateEmbeddings(ctx context.Context, token, base string, input *CreateEmbeddingsInput) (*CreateEmbeddingsOutput, error) {
+	var (
+		jinaInput     *JinaCreateEmbeddingsInput
+		jinaClipInput *JinaCreateEmbeddingsClipInput
+		data          []byte
+		err           error
+	)
+	if input.Model == "jina-clip-v2" {
+		jinaClipInput = &JinaCreateEmbeddingsClipInput{}
+		jinaClipInput.Loads(input)
+		data, err = json.Marshal(jinaClipInput)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		jinaInput = &JinaCreateEmbeddingsInput{}
+		jinaInput.Loads(input)
+		data, err = json.Marshal(jinaInput)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if base == "" {
 		base = core.JINA_API_BASE
 	}
-
 	url := fmt.Sprintf("%s/embeddings", base)
-	data, err := json.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
