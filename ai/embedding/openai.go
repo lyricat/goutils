@@ -44,10 +44,11 @@ func OpenAICreateEmbeddings(ctx context.Context, token string, base string, inpu
 		base = OpenAIAPIBase
 	}
 	url := fmt.Sprintf("%s/embeddings", base)
-	data, err := json.Marshal(input)
+	data, err := json.Marshal(openaiInput)
 	if err != nil {
 		return nil, err
 	}
+
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
