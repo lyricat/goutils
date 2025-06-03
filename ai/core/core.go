@@ -76,6 +76,7 @@ type (
 		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 		CacheInputTokens         int `json:"cache_input_tokens"`
+		ImageCount               int `json:"image_count,omitempty"`
 	}
 
 	Result struct {
