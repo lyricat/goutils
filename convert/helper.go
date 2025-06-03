@@ -6,10 +6,14 @@ func ConvertLanguageCodeToName(code string) string {
 		return "English"
 	case "ja":
 		return "Japanese"
-	case "zh-hans":
+	case "zh", "zh-hans":
 		return "Simplified Chinese"
-	case "zh-hant":
+	case "zh-tw", "zh-hant":
 		return "Traditional Chinese"
+	case "fr":
+		return "French"
+	case "it":
+		return "Italian"
 	default:
 		return "English"
 	}
