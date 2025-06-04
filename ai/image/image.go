@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/lyricat/goutils/structs"
 )
@@ -63,6 +64,9 @@ func NewImageClient(cfg *Config) *ImageClient {
 }
 
 func (c *ImageClient) CreateImages(ctx context.Context, input *CreateImagesInput) (*CreateImagesOutput, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*600)
+	defer cancel()
+
 	// if provider is not set
 	// look at the model name, and decide which provider to use
 	// else, use the provider in the input
