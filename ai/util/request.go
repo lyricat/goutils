@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	OpenAIAPIBase = "https://api.openai.com"
+	OpenAIAPIV1Base = "https://api.openai.com/v1"
 )
 
 func OpenAIRequest(ctx context.Context, token, base, method, url string, data []byte) ([]byte, error) {
 	if base == "" {
-		base = OpenAIAPIBase
+		base = OpenAIAPIV1Base
 	}
 	apiUrl := fmt.Sprintf("%s%s", base, url)
 	req, err := http.NewRequestWithContext(ctx, method, apiUrl, bytes.NewBuffer(data))

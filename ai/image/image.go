@@ -13,6 +13,7 @@ type (
 	Config struct {
 		OpenAIAPIKey  string
 		OpenAIAPIBase string
+		GeminiAPIKey  string
 	}
 
 	ImageClient struct {
@@ -33,7 +34,8 @@ type (
 		Data    []struct {
 			B64JSON string `json:"b64_json"`
 		} `json:"data"`
-		Usage CreateImageUsage `json:"usage"`
+		MimeType string           `json:"mime_type"`
+		Usage    CreateImageUsage `json:"usage"`
 	}
 
 	CreateImageUsage struct {
@@ -75,8 +77,10 @@ func (c *ImageClient) CreateImages(ctx context.Context, input *CreateImagesInput
 	var resp *CreateImagesOutput
 	var err error
 	switch input.Provider {
-	case "openai":
+	case "openai", "openai_custom":
 		resp, err = OpenAICreateImages(ctx, c.cfg.OpenAIAPIKey, c.cfg.OpenAIAPIBase, input)
+	case "gemini":
+		resp, err = GeminiCreateImages(ctx, c.cfg.GeminiAPIKey, input)
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", input.Provider)
 	}
@@ -87,8 +91,8 @@ func (c *ImageClient) CreateImages(ctx context.Context, input *CreateImagesInput
 }
 
 func pickProviderByModel(model string) string {
-	if strings.Contains(model, "jina") {
-		return "jina-"
+	if strings.Contains(model, "gpt-") {
+		return "openai"
 	}
 	return "openai"
 }

@@ -88,6 +88,7 @@ func (m *OpenAICreateImagesOutput) ToCreateImagesOutput(input *OpenAICreateImage
 			OutputTokens: m.OpenAICreateImagesUsage.OutputTokens,
 			TotalTokens:  m.OpenAICreateImagesUsage.TotalTokens,
 		},
+		MimeType: getMimeType(input.OutputFormat),
 	}
 }
 
@@ -100,7 +101,7 @@ func OpenAICreateImages(ctx context.Context, token string, base string, input *C
 		return nil, err
 	}
 
-	respData, err := util.OpenAIRequest(ctx, token, base, "POST", "/v1/images/generations", reqData)
+	respData, err := util.OpenAIRequest(ctx, token, base, "POST", "/images/generations", reqData)
 	if err != nil {
 		return nil, err
 	}
@@ -112,4 +113,19 @@ func OpenAICreateImages(ctx context.Context, token string, base string, input *C
 	}
 
 	return resp.ToCreateImagesOutput(openaiInput), nil
+}
+
+func getMimeType(format string) string {
+	switch format {
+	case "webp":
+		return "image/webp"
+	case "png":
+		return "image/png"
+	case "jpg":
+		return "image/jpeg"
+	case "jpeg":
+		return "image/jpeg"
+	default:
+		return "image/webp"
+	}
 }

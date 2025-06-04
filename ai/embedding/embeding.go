@@ -92,7 +92,7 @@ func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input *CreateEmb
 
 func pickProviderByModel(model string) string {
 	if strings.Contains(model, "jina") {
-		return "jina-"
+		return "jina"
 	}
 	return "openai"
 }
