@@ -8,6 +8,7 @@ import (
 	"image"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 )
 
@@ -73,6 +74,25 @@ func (i2 *GeminiCreateImagesInput) Loads(i1 *CreateImagesInput) {
 	}
 }
 
+func (i *GeminiCreateImagesInput) Verify() error {
+	aspectRatio := []string{AspectRatioSquare, AspectRatioPortrait34, AspectRatioLandscape43, AspectRatioPortrait916, AspectRatioLandscape169}
+	personGeneration := []string{DontAllow, Allow}
+	safetyFilterLevel := []string{BlockLowAndAbove, BlockMediumAndAbove, BlockOnlyHigh}
+	if i.Model != "imagen-3.0-generate-002" {
+		return fmt.Errorf("model must be imagen-3.0-generate-002")
+	}
+	if !slices.Contains(aspectRatio, i.AspectRatio) {
+		return fmt.Errorf("aspect ratio must be one of %v", aspectRatio)
+	}
+	if !slices.Contains(personGeneration, i.PersonGeneration) {
+		return fmt.Errorf("person generation must be one of %v", personGeneration)
+	}
+	if !slices.Contains(safetyFilterLevel, i.SafetyFilterLevel) {
+		return fmt.Errorf("safety filter level must be one of %v", safetyFilterLevel)
+	}
+	return nil
+}
+
 func GeminiCreateImages(ctx context.Context, token string, input *CreateImagesInput) (*CreateImagesOutput, error) {
 	if input.Model == "" {
 		input.Model = "imagen-3.0-generate-002"
@@ -83,6 +103,9 @@ func GeminiCreateImages(ctx context.Context, token string, input *CreateImagesIn
 
 	geminiInput := &GeminiCreateImagesInput{}
 	geminiInput.Loads(input)
+	if err := geminiInput.Verify(); err != nil {
+		return nil, err
+	}
 
 	// Prepare request body
 	reqBody := map[string]any{

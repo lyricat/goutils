@@ -3,6 +3,8 @@ package image
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"slices"
 
 	"github.com/lyricat/goutils/ai/util"
 )
@@ -77,6 +79,22 @@ func (i2 *OpenAICreateImagesInput) Loads(i1 *CreateImagesInput) {
 	}
 }
 
+func (i *OpenAICreateImagesInput) Verify() error {
+	quality := []string{"high", "medium", "low"}
+	size := []string{"1024x1024", "1024x1536", "1536x1024"}
+	outputFormat := []string{"webp", "png", "jpg"}
+	if !slices.Contains(quality, i.Quality) {
+		return fmt.Errorf("quality must be one of %v", quality)
+	}
+	if !slices.Contains(size, i.Size) {
+		return fmt.Errorf("size must be one of %v", size)
+	}
+	if !slices.Contains(outputFormat, i.OutputFormat) {
+		return fmt.Errorf("output format must be one of %v", outputFormat)
+	}
+	return nil
+}
+
 func (m *OpenAICreateImagesOutput) ToCreateImagesOutput(input *OpenAICreateImagesInput) *CreateImagesOutput {
 	return &CreateImagesOutput{
 		Created: m.Created,
@@ -95,6 +113,9 @@ func (m *OpenAICreateImagesOutput) ToCreateImagesOutput(input *OpenAICreateImage
 func OpenAICreateImages(ctx context.Context, token string, base string, input *CreateImagesInput) (*CreateImagesOutput, error) {
 	openaiInput := &OpenAICreateImagesInput{}
 	openaiInput.Loads(input)
+	if err := openaiInput.Verify(); err != nil {
+		return nil, err
+	}
 
 	reqData, err := json.Marshal(openaiInput)
 	if err != nil {
