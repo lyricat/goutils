@@ -54,7 +54,14 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 			return
 		}
 
-		r := &core.Result{Text: resp.Choices[0].Message.Content}
+		text := ""
+		if len(resp.Choices) > 0 {
+			for _, choice := range resp.Choices {
+				text += choice.Message.Content
+			}
+		}
+
+		r := &core.Result{Text: text}
 		r.Usage.InputTokens = resp.Usage.PromptTokens
 		r.Usage.OutputTokens = resp.Usage.CompletionTokens
 		if resp.Usage.PromptTokensDetails != nil {
