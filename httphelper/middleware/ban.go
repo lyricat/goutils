@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lyricat/goutils/httphelper/util"
@@ -23,11 +22,7 @@ type Ban struct {
 	maliciousPaths  []string
 	rdbKey          string
 	rdbBlacklistKey string
-
-	ipBlacklist       map[string]struct{}
-	ipSubnetBlacklist map[string]*net.IPNet
-	mu                sync.RWMutex
-	onBlacklistAdd    func(ip string, reason string)
+	onBlacklistAdd  func(ip string, reason string)
 }
 
 type BanParams struct {
@@ -71,29 +66,17 @@ func NewBan(params BanParams) (*Ban, error) {
 	}
 
 	b := &Ban{
-		rdb:               params.Rdb,
-		maliciousPaths:    params.MaliciousPaths,
-		rdbKey:            params.RdbKey,
-		rdbBlacklistKey:   params.RdbBlacklistKey,
-		ipBlacklist:       make(map[string]struct{}),
-		ipSubnetBlacklist: make(map[string]*net.IPNet),
-		onBlacklistAdd:    params.OnBlacklistAdd,
+		rdb:             params.Rdb,
+		maliciousPaths:  params.MaliciousPaths,
+		rdbKey:          params.RdbKey,
+		rdbBlacklistKey: params.RdbBlacklistKey,
+		onBlacklistAdd:  params.OnBlacklistAdd,
 	}
 
-	blacklist := params.IPBlacklist
-	if b.rdb != nil {
-		ctx := context.Background()
-		rdbBlacklist, err := b.rdb.SMembers(ctx, b.rdbBlacklistKey).Result()
-		if err != nil && err != redis.Nil {
-			return nil, fmt.Errorf("failed to load blacklist from redis: %w", err)
+	if len(params.IPBlacklist) > 0 {
+		if err := b.SetBlacklist(params.IPBlacklist); err != nil {
+			return nil, fmt.Errorf("failed to set initial blacklist: %w", err)
 		}
-		if len(rdbBlacklist) > 0 {
-			blacklist = append(blacklist, rdbBlacklist...)
-		}
-	}
-
-	if err := b.SetBlacklist(blacklist); err != nil {
-		return nil, fmt.Errorf("failed to set initial blacklist: %w", err)
 	}
 
 	return b, nil
@@ -124,9 +107,6 @@ func (b *Ban) Handler(next http.Handler) http.Handler {
 				b.rdb.Set(ctx, key, "1", time.Hour*4320)
 				addedCount, err := b.rdb.SAdd(ctx, b.rdbBlacklistKey, ipStr).Result()
 				if err == nil && addedCount > 0 {
-					b.mu.Lock()
-					b.addIPToBlacklist(ipStr)
-					b.mu.Unlock()
 					if b.onBlacklistAdd != nil {
 						go b.onBlacklistAdd(ipStr, BanReasonMaliciousPath)
 					}
@@ -140,48 +120,31 @@ func (b *Ban) Handler(next http.Handler) http.Handler {
 }
 
 func (b *Ban) SetBlacklist(blacklist []string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.ipBlacklist = make(map[string]struct{})
-	b.ipSubnetBlacklist = make(map[string]*net.IPNet)
-
-	for _, entry := range blacklist {
-		b.addIPToBlacklist(entry)
+	ctx := context.Background()
+	pipe := b.rdb.Pipeline()
+	pipe.Del(ctx, b.rdbBlacklistKey)
+	if len(blacklist) > 0 {
+		// Convert []string to []interface{}
+		s := make([]interface{}, len(blacklist))
+		for i, v := range blacklist {
+			s[i] = v
+		}
+		pipe.SAdd(ctx, b.rdbBlacklistKey, s...)
 	}
-
-	if b.rdb != nil {
-		ctx := context.Background()
-		pipe := b.rdb.Pipeline()
-		pipe.Del(ctx, b.rdbBlacklistKey)
-		if len(blacklist) > 0 {
-			// Convert []string to []interface{}
-			s := make([]interface{}, len(blacklist))
-			for i, v := range blacklist {
-				s[i] = v
-			}
-			pipe.SAdd(ctx, b.rdbBlacklistKey, s...)
-		}
-		_, err := pipe.Exec(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to update blacklist in redis: %w", err)
-		}
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to update blacklist in redis: %w", err)
 	}
 
 	return nil
 }
 
 func (b *Ban) BanIP(ip string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	ctx := context.Background()
 	addedCount, err := b.rdb.SAdd(ctx, b.rdbBlacklistKey, ip).Result()
 	if err != nil {
 		return fmt.Errorf("failed to add ip to blacklist in redis: %w", err)
 	}
-
-	b.addIPToBlacklist(ip)
 
 	if addedCount > 0 && b.onBlacklistAdd != nil {
 		go b.onBlacklistAdd(ip, BanReasonManual)
@@ -191,16 +154,9 @@ func (b *Ban) BanIP(ip string) error {
 }
 
 func (b *Ban) UnbanIP(ipStr string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.removeIPFromBlacklist(ipStr)
-
-	if b.rdb != nil {
-		ctx := context.Background()
-		if err := b.rdb.SRem(ctx, b.rdbBlacklistKey, ipStr).Err(); err != nil {
-			return fmt.Errorf("failed to remove ip from blacklist in redis: %w", err)
-		}
+	ctx := context.Background()
+	if err := b.rdb.SRem(ctx, b.rdbBlacklistKey, ipStr).Err(); err != nil {
+		return fmt.Errorf("failed to remove ip from blacklist in redis: %w", err)
 	}
 
 	return nil
@@ -211,42 +167,26 @@ func (b *Ban) IsBannedIP(ipStr string) bool {
 	return b.isBlacklisted(ip, ipStr)
 }
 
-func (b *Ban) addIPToBlacklist(ipStr string) {
-	if ip, ipNet, err := parseIPOrCIDR(ipStr); err == nil {
-		if ipNet != nil {
-			b.ipSubnetBlacklist[ipNet.String()] = ipNet
-		} else if ip != nil {
-			b.ipBlacklist[ip.String()] = struct{}{}
-		}
-	} else if ipNet, err := parseWildcardIP(ipStr); err == nil {
-		b.ipSubnetBlacklist[ipNet.String()] = ipNet
-	}
-}
-
-func (b *Ban) removeIPFromBlacklist(ipStr string) {
-	if ip, ipNet, err := parseIPOrCIDR(ipStr); err == nil {
-		if ipNet != nil {
-			delete(b.ipSubnetBlacklist, ipNet.String())
-		} else if ip != nil {
-			delete(b.ipBlacklist, ip.String())
-		}
-	} else if ipNet, err := parseWildcardIP(ipStr); err == nil {
-		delete(b.ipSubnetBlacklist, ipNet.String())
-	}
-}
-
 func (b *Ban) isBlacklisted(ip net.IP, ipStr string) bool {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
-	if _, found := b.ipBlacklist[ipStr]; found {
-		return true
+	ctx := context.Background()
+	blacklist, err := b.rdb.SMembers(ctx, b.rdbBlacklistKey).Result()
+	if err != nil {
+		return false
 	}
 
-	if ip != nil {
-		for _, subnet := range b.ipSubnetBlacklist {
-			if subnet.Contains(ip) {
-				return true
+	for _, entry := range blacklist {
+		if ipStr == entry {
+			return true
+		}
+		if ip != nil {
+			if _, ipNet, err := parseIPOrCIDR(entry); err == nil {
+				if ipNet != nil && ipNet.Contains(ip) {
+					return true
+				}
+			} else if ipNet, err := parseWildcardIP(entry); err == nil {
+				if ipNet.Contains(ip) {
+					return true
+				}
 			}
 		}
 	}
