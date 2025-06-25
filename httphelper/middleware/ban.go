@@ -13,6 +13,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	BanReasonManual        = "manual"
+	BanReasonMaliciousPath = "malicious_path"
+)
+
 type Ban struct {
 	rdb             *redis.Client
 	maliciousPaths  []string
@@ -123,8 +128,7 @@ func (b *Ban) Handler(next http.Handler) http.Handler {
 					b.addIPToBlacklist(ipStr)
 					b.mu.Unlock()
 					if b.onBlacklistAdd != nil {
-						reason := fmt.Sprintf("malicious path: %s", p)
-						go b.onBlacklistAdd(ipStr, reason)
+						go b.onBlacklistAdd(ipStr, BanReasonMaliciousPath)
 					}
 				}
 				http.Error(w, "", http.StatusNotFound)
@@ -180,7 +184,7 @@ func (b *Ban) BanIP(ip string) error {
 	b.addIPToBlacklist(ip)
 
 	if addedCount > 0 && b.onBlacklistAdd != nil {
-		go b.onBlacklistAdd(ip, "manual")
+		go b.onBlacklistAdd(ip, BanReasonManual)
 	}
 
 	return nil
