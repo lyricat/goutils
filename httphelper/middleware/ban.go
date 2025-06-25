@@ -116,7 +116,7 @@ func (b *Ban) Handler(next http.Handler) http.Handler {
 		path := r.URL.Path
 		for _, p := range b.maliciousPaths {
 			if strings.Contains(path, p) {
-				b.rdb.Set(ctx, key, "1", time.Hour*24)
+				b.rdb.Set(ctx, key, "1", time.Hour*4320)
 				addedCount, err := b.rdb.SAdd(ctx, b.rdbBlacklistKey, ipStr).Result()
 				if err == nil && addedCount > 0 {
 					b.mu.Lock()
