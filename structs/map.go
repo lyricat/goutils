@@ -158,6 +158,23 @@ func (a *JSONMap) GetInt64Array(key string) []int64 {
 	return nil
 }
 
+func (a *JSONMap) GetStringArray(key string) []string {
+	if val, ok := (*a)[key]; ok {
+		if arrVal, ok := val.([]any); ok {
+			ret := make([]string, len(arrVal))
+			for i, v := range arrVal {
+				if strVal, ok := v.(string); ok {
+					ret[i] = strVal
+				} else if jsonString, err := json.Marshal(v); err == nil {
+					ret[i] = string(jsonString)
+				}
+			}
+			return ret
+		}
+	}
+	return nil
+}
+
 func (a *JSONMap) SetValue(key string, value interface{}) {
 	(*a)[key] = value
 }

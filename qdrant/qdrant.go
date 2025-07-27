@@ -68,6 +68,7 @@ type (
 		Key            string
 		Value          int64
 		Offset         uint64
+		Filter         *pb.Filter
 	}
 
 	CreateCollectionParams struct {
@@ -275,22 +276,26 @@ func (c *QdrantClient) DeletePoints(ctx context.Context, params DeletePointsPara
 
 func (c *QdrantClient) SearchPointsWithFilter(ctx context.Context, params SearchPointsParams) ([]*QdrantPoint, error) {
 	filter := &pb.Filter{}
-	if params.Key != "" {
-		filter = &pb.Filter{
-			Must: []*pb.Condition{
-				{
-					ConditionOneOf: &pb.Condition_Field{
-						Field: &pb.FieldCondition{
-							Key: params.Key,
-							Match: &pb.Match{
-								MatchValue: &pb.Match_Integer{
-									Integer: params.Value,
+	if params.Filter != nil {
+		filter = params.Filter
+	} else {
+		if params.Key != "" {
+			filter = &pb.Filter{
+				Must: []*pb.Condition{
+					{
+						ConditionOneOf: &pb.Condition_Field{
+							Field: &pb.FieldCondition{
+								Key: params.Key,
+								Match: &pb.Match{
+									MatchValue: &pb.Match_Integer{
+										Integer: params.Value,
+									},
 								},
 							},
 						},
 					},
 				},
-			},
+			}
 		}
 	}
 	pointsClient := pb.NewPointsClient(c.Conn)

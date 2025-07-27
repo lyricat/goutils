@@ -113,3 +113,16 @@ const (
 func (m Message) Pretty() string {
 	return fmt.Sprintf("{ Role: '%s', Content: '%s' }", m.Role, m.Content)
 }
+
+func (m *ResultUsage) Add(other ResultUsage) ResultUsage {
+	ret := ResultUsage{
+		InputTokens:              m.InputTokens + other.InputTokens,
+		OutputTokens:             m.OutputTokens + other.OutputTokens,
+		CacheCreationInputTokens: m.CacheCreationInputTokens + other.CacheCreationInputTokens,
+		CacheReadInputTokens:     m.CacheReadInputTokens + other.CacheReadInputTokens,
+		CacheInputTokens:         m.CacheInputTokens + other.CacheInputTokens,
+		ImageCount:               m.ImageCount + other.ImageCount,
+	}
+	*m = ret
+	return ret
+}
