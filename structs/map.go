@@ -13,7 +13,7 @@ func NewJSONMap() JSONMap {
 	return make(JSONMap)
 }
 
-func NewFromMap(m map[string]interface{}) JSONMap {
+func NewFromMap(m map[string]any) JSONMap {
 	a := NewJSONMap()
 	for k, v := range m {
 		a[k] = v
@@ -22,7 +22,7 @@ func NewFromMap(m map[string]interface{}) JSONMap {
 }
 
 func NewFromJSONString(jsonString string) JSONMap {
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal([]byte(jsonString), &m); err != nil {
 		return nil
 	}
@@ -33,7 +33,7 @@ func (a JSONMap) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
 
-func (a *JSONMap) Scan(value interface{}) error {
+func (a *JSONMap) Scan(value any) error {
 	b, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
@@ -95,7 +95,7 @@ func (a *JSONMap) GetMap(key string) *JSONMap {
 		if mapVal, ok := val.(JSONMap); ok {
 			ret = mapVal
 		}
-		if mapVal, ok := val.(map[string]interface{}); ok {
+		if mapVal, ok := val.(map[string]any); ok {
 			ret = NewFromMap(mapVal)
 		}
 	}
@@ -175,7 +175,7 @@ func (a *JSONMap) GetStringArray(key string) []string {
 	return nil
 }
 
-func (a *JSONMap) SetValue(key string, value interface{}) {
+func (a *JSONMap) SetValue(key string, value any) {
 	(*a)[key] = value
 }
 
