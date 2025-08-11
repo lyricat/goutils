@@ -2,6 +2,7 @@ package ai
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/lyricat/goutils/ai/core"
@@ -26,10 +27,8 @@ func IsOpenAICompatible(p string) bool {
 		core.ProviderXAI,
 		core.ProviderGemini,
 	}
-	for _, provider := range compatibleProviders {
-		if p == provider {
-			return true
-		}
+	if slices.Contains(compatibleProviders, p) {
+		return true
 	}
 	return false
 }

@@ -11,6 +11,8 @@ import (
 )
 
 func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys ...string) (map[string]any, error) {
+	originalInput := input
+	
 	// try to parse the response
 	var resp map[string]any
 	if err := json.Unmarshal([]byte(input), &resp); err != nil {
@@ -18,11 +20,33 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 			slog.Warn("[goutils.ai] failed to get json by calling json.Unmarshal, let's try to extract", "input", input, "error", err)
 		}
 
-		// use regex to extract the json part
-		// it could be multiple lines.
-		// this regex will find the smallest substring that starts with { and ends with }, capturing everything in between—even if it spans multiple lines.
-		re := regexp.MustCompile(`(?s)\{.*\}`)
-		input = re.FindString(input)
+		// First try to extract from markdown if present
+		if strings.Contains(input, "```json") || strings.Contains(input, "```") {
+			// Look for markdown code blocks (with or without json label)
+			markdownPattern := regexp.MustCompile(`(?s)` + "```" + `(?:json)?\s*\n?(.*?)(?:` + "```" + `|$)`)
+			if matches := markdownPattern.FindStringSubmatch(input); len(matches) > 1 {
+				input = strings.TrimSpace(matches[1])
+				// Try to repair incomplete JSON
+				input = s.attemptJSONRepair(input)
+			}
+		} else {
+			// use regex to extract the json part
+			// it could be multiple lines.
+			// this regex will find the smallest substring that starts with { and ends with }, capturing everything in between—even if it spans multiple lines.
+			re := regexp.MustCompile(`(?s)\{.*\}`)
+			input = re.FindString(input)
+		}
+		
+		// If still no JSON found, try to find it anywhere in the text
+		if input == "" {
+			// Look for JSON starting from the last { in the original input
+			lastBrace := strings.LastIndex(originalInput, "{")
+			if lastBrace != -1 {
+				input = originalInput[lastBrace:]
+				input = s.attemptJSONRepair(input)
+			}
+		}
+		
 		// replace \\n -> \n
 		input = regexp.MustCompile(`\\n`).ReplaceAllString(input, "\n")
 		input = regexp.MustCompile(`\n`).ReplaceAllString(input, "")
@@ -34,9 +58,9 @@ func (s *Instant) GrabJsonOutput(ctx context.Context, input string, outputKeys .
 			}
 
 			// try to extract json from markdown
-			if err := s.GrabJsonOutputFromMd(ctx, input, &resp); err != nil {
+			if err := s.GrabJsonOutputFromMd(ctx, originalInput, &resp); err != nil {
 				if s.cfg.Debug {
-					slog.Error("[goutils.ai] failed to extract json from md", "input", input, "error", err)
+					slog.Error("[goutils.ai] failed to extract json from md", "input", originalInput, "error", err)
 				}
 				return nil, err
 			}
@@ -162,4 +186,63 @@ func (s *Instant) GrabYamlOutputFromMd(ctx context.Context, input string, mapOut
 	}
 
 	return nil
+}
+
+// attemptJSONRepair tries to fix common JSON formatting issues
+func (s *Instant) attemptJSONRepair(input string) string {
+	if input == "" {
+		return input
+	}
+	
+	// Remove trailing commas before closing braces/brackets
+	input = regexp.MustCompile(`,\s*([}\]])`).ReplaceAllString(input, "$1")
+	
+	// Count braces and brackets to see if we need to add closing ones
+	openBraces := strings.Count(input, "{")
+	closeBraces := strings.Count(input, "}")
+	openBrackets := strings.Count(input, "[")
+	closeBrackets := strings.Count(input, "]")
+	
+	// Check for incomplete strings - count unescaped quotes
+	quoteCount := 0
+	escaped := false
+	inString := false
+	for i, ch := range input {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+		if ch == '"' {
+			quoteCount++
+			inString = !inString
+		}
+		// If we're at the end and still in a string, close it
+		if i == len(input)-1 && inString {
+			input += "\""
+			quoteCount++
+		}
+	}
+	
+	// Add missing closing braces
+	for i := closeBraces; i < openBraces; i++ {
+		// If we're in the middle of a string value, close it first
+		if quoteCount%2 == 1 {
+			input += "\""
+		}
+		input += "}"
+	}
+	
+	// Add missing closing brackets
+	for i := closeBrackets; i < openBrackets; i++ {
+		if quoteCount%2 == 1 {
+			input += "\""
+		}
+		input += "]"
+	}
+	
+	return input
 }

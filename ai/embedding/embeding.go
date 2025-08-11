@@ -14,10 +14,12 @@ type (
 		cfg *Config
 	}
 	Config struct {
-		JinaAPIKey    string
-		JinaAPIBase   string
-		OpenAIAPIKey  string
-		OpenAIAPIBase string
+		JinaAPIKey     string
+		JinaAPIBase    string
+		OpenAIAPIKey   string
+		OpenAIAPIBase  string
+		GeminiAPIKey   string
+		GeminiAPIBase  string
 	}
 
 	CreateEmbeddingsInputItem struct {
@@ -26,11 +28,12 @@ type (
 	}
 
 	CreateEmbeddingsInput struct {
-		Provider      string                      `json:"provider"`
-		Model         string                      `json:"model"`
-		Input         []CreateEmbeddingsInputItem `json:"input"`
-		JinaOptions   structs.JSONMap             `json:"jina_options"`
-		OpenAIOptions structs.JSONMap             `json:"openai_options"`
+		Provider       string                      `json:"provider"`
+		Model          string                      `json:"model"`
+		Input          []CreateEmbeddingsInputItem `json:"input"`
+		JinaOptions    structs.JSONMap             `json:"jina_options"`
+		OpenAIOptions  structs.JSONMap             `json:"openai_options"`
+		GeminiOptions  structs.JSONMap             `json:"gemini_options"`
 	}
 
 	CreateEmbeddingsOutput struct {
@@ -81,6 +84,8 @@ func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input *CreateEmb
 		resp, err = JinaCreateEmbeddings(ctx, c.cfg.JinaAPIKey, c.cfg.JinaAPIBase, input)
 	case "openai":
 		resp, err = OpenAICreateEmbeddings(ctx, c.cfg.OpenAIAPIKey, c.cfg.OpenAIAPIBase, input)
+	case "gemini":
+		resp, err = GeminiCreateEmbeddings(ctx, c.cfg.GeminiAPIKey, c.cfg.GeminiAPIBase, input)
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", input.Provider)
 	}
@@ -93,6 +98,9 @@ func (c *EmbeddingClient) CreateEmbeddings(ctx context.Context, input *CreateEmb
 func pickProviderByModel(model string) string {
 	if strings.Contains(model, "jina") {
 		return "jina"
+	}
+	if strings.Contains(model, "gemini") {
+		return "gemini"
 	}
 	return "openai"
 }
