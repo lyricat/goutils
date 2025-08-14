@@ -158,19 +158,15 @@ func (s *Instant) SusanooCreateTask(ctx context.Context, task *SusanooTaskReques
 
 		var body SusanooTaskResponse
 		if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
-			return err
-		}
-
-		if body.Data.Code != 0 {
-			return fmt.Errorf("failed to create task at susanoo: %d", body.Data.Code)
-		}
-
-		if err != nil {
 			resultChan <- struct {
 				traceID string
 				err     error
 			}{traceID: "", err: err}
 			return err
+		}
+
+		if body.Data.Code != 0 {
+			return fmt.Errorf("failed to create task at susanoo: %d", body.Data.Code)
 		}
 
 		resultChan <- struct {

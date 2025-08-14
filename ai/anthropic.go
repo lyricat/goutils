@@ -75,6 +75,10 @@ func (s *Instant) AnthropicRawRequest(ctx context.Context, messages []AnthropicC
 			MaxTokens: 8192,
 		}
 
+		if _opts != nil && _opts.Model != "" {
+			body.Model = _opts.Model
+		}
+
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
 			resultChan <- struct {
@@ -108,7 +112,7 @@ func (s *Instant) AnthropicRawRequest(ctx context.Context, messages []AnthropicC
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			var errorResponse map[string]interface{}
+			var errorResponse map[string]any
 			if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
 				resultChan <- struct {
 					resp *core.Result
