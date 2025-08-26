@@ -20,9 +20,10 @@ func (c *Client) GetTweetByID(ctx context.Context, token *oauth2.Token, tweetID 
 	}
 
 	q := req.URL.Query()
-	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang")
+	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang,attachments")
 	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
-	q.Add("expansions", "author_id,referenced_tweets.id")
+	q.Add("media.fields", "media_key,type,url,alt_text,duration_ms,height,preview_image_url,public_metrics,width")
+	q.Add("expansions", "author_id,referenced_tweets.id,attachments.media_keys")
 	req.URL.RawQuery = q.Encode()
 
 	c.addAuthHeader(req, token)
@@ -61,9 +62,10 @@ func (c *Client) GetTweetsByIDs(ctx context.Context, token *oauth2.Token, tweetI
 
 	q := req.URL.Query()
 	q.Add("ids", strings.Join(tweetIDs, ","))
-	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang")
+	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang,attachments")
 	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
-	q.Add("expansions", "author_id,referenced_tweets.id")
+	q.Add("media.fields", "media_key,type,url,alt_text,duration_ms,height,preview_image_url,public_metrics,width")
+	q.Add("expansions", "author_id,referenced_tweets.id,attachments.media_keys")
 	req.URL.RawQuery = q.Encode()
 
 	c.addAuthHeader(req, token)

@@ -30,6 +30,25 @@ type (
 )
 
 type (
+	Media struct {
+		MediaKey    string `json:"media_key"`
+		Type        string `json:"type"`
+		Height      int    `json:"height,omitempty"`
+		Width       int    `json:"width,omitempty"`
+		URL         string `json:"url,omitempty"`
+		PreviewURL  string `json:"preview_image_url,omitempty"`
+		AltText     string `json:"alt_text,omitempty"`
+		DurationMs  int    `json:"duration_ms,omitempty"`
+		PublicMetrics struct {
+			ViewCount int `json:"view_count,omitempty"`
+		} `json:"public_metrics,omitempty"`
+	}
+
+	Attachments struct {
+		MediaKeys []string `json:"media_keys,omitempty"`
+		PollIds   []string `json:"poll_ids,omitempty"`
+	}
+
 	TweetEntities struct {
 		Urls []struct {
 			URL         string `json:"url"`
@@ -81,6 +100,8 @@ type (
 		AuthorID        string `json:"author_id"`
 		// Entities
 		Entities TweetEntities `json:"entities"`
+		// Attachments
+		Attachments Attachments `json:"attachments"`
 		// PublicMetrics
 		PublicMetrics TweetPublicMetrics `json:"public_metrics"`
 		// ReferencedTweets
@@ -94,6 +115,7 @@ type (
 		Includes struct {
 			Users  []User        `json:"users"`
 			Tweets []TweetObject `json:"tweets"`
+			Media  []Media       `json:"media"`
 		} `json:"includes"`
 		Meta struct {
 			ResultCount   int64  `json:"result_count"`
@@ -107,12 +129,14 @@ type (
 		Includes struct {
 			Users  []User        `json:"users"`
 			Tweets []TweetObject `json:"tweets"`
+			Media  []Media       `json:"media"`
 		} `json:"includes"`
 	}
 
 	SearchIncludes struct {
 		Users  []User        `json:"users"`
 		Tweets []TweetObject `json:"tweets"`
+		Media  []Media       `json:"media"`
 	}
 
 	SearchResponse struct {
@@ -184,4 +208,63 @@ func (t *TweetResponse) GetUserByID(id string) *User {
 		}
 	}
 	return nil
+}
+
+func (t *TweetObject) HasMedia() bool {
+	return len(t.Attachments.MediaKeys) > 0
+}
+
+func (t *TweetObject) GetMediaKeys() []string {
+	return t.Attachments.MediaKeys
+}
+
+func (t *TweetsResponse) GetMediaByKey(mediaKey string) *Media {
+	for _, media := range t.Includes.Media {
+		if media.MediaKey == mediaKey {
+			return &media
+		}
+	}
+	return nil
+}
+
+func (t *TweetResponse) GetMediaByKey(mediaKey string) *Media {
+	for _, media := range t.Includes.Media {
+		if media.MediaKey == mediaKey {
+			return &media
+		}
+	}
+	return nil
+}
+
+func (t *SearchResponse) GetMediaByKey(mediaKey string) *Media {
+	for _, media := range t.Includes.Media {
+		if media.MediaKey == mediaKey {
+			return &media
+		}
+	}
+	return nil
+}
+
+func (t *TweetObject) GetAllMediaWithAltText(response interface{}) []Media {
+	var mediaList []Media
+	if !t.HasMedia() {
+		return mediaList
+	}
+
+	for _, mediaKey := range t.GetMediaKeys() {
+		var media *Media
+		switch r := response.(type) {
+		case *TweetsResponse:
+			media = r.GetMediaByKey(mediaKey)
+		case *TweetResponse:
+			media = r.GetMediaByKey(mediaKey)
+		case *SearchResponse:
+			media = r.GetMediaByKey(mediaKey)
+		}
+		
+		if media != nil {
+			mediaList = append(mediaList, *media)
+		}
+	}
+	return mediaList
 }
