@@ -30,6 +30,14 @@ type (
 )
 
 type (
+	URLInfo struct {
+		URL         string `json:"url"`
+		ExpandedURL string `json:"expanded_url"`
+		DisplayURL  string `json:"display_url"`
+		Title       string `json:"title,omitempty"`
+		Description string `json:"description,omitempty"`
+	}
+
 	Media struct {
 		MediaKey    string `json:"media_key"`
 		Type        string `json:"type"`
@@ -268,3 +276,17 @@ func (t *TweetObject) GetAllMediaWithAltText(response interface{}) []Media {
 	}
 	return mediaList
 }
+
+func (t *TweetObject) GetURLsWithTitles() []URLInfo {
+	var urlList []URLInfo
+	for _, url := range t.Entities.Urls {
+		urlInfo := URLInfo{
+			URL:         url.URL,
+			ExpandedURL: url.ExpandedURL,
+			DisplayURL:  url.DisplayURL,
+		}
+		urlList = append(urlList, urlInfo)
+	}
+	return urlList
+}
+
