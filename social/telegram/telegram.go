@@ -70,6 +70,8 @@ func (s *Client) SendTextMessage(ctx context.Context, title, text, url string) e
 		},
 	}
 	if url != "" {
+		// replace `_` with `\_` to avoid markdown parsing issues
+		url = strings.ReplaceAll(url, "_", `\_`)
 		smr.Text = fmt.Sprintf("# *%s*\n\n%s\n\n👉 %s\n\n", title, text, url)
 	}
 	return s.SendTextMessageRaw(ctx, smr)
