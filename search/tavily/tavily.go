@@ -62,7 +62,7 @@ func NewSearchClient(apiKey string) *SearchClient {
 
 // Search performs a search query using the provided query and start parameters.
 // It returns a SearchResponse on success or an error if the request fails.
-func (s *SearchClient) Search(query string, start int) (*SearchResponse, error) {
+func (s *SearchClient) Search(query string, start int, options ...*SearchRequest) (*SearchResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -81,6 +81,41 @@ func (s *SearchClient) Search(query string, start int) (*SearchResponse, error) 
 		IncludeDomains:           []string{},
 		ExcludeDomains:           []string{},
 		Start:                    start,
+	}
+
+	// Override defaults with provided options
+	if len(options) > 0 {
+		if options[0].Query != "" {
+			reqBody.Query = options[0].Query
+		}
+		if options[0].Topic != "" {
+			reqBody.Topic = options[0].Topic
+		}
+		if options[0].SearchDepth != "" {
+			reqBody.SearchDepth = options[0].SearchDepth
+		}
+		if options[0].MaxResults != 0 {
+			reqBody.MaxResults = options[0].MaxResults
+		}
+		if options[0].TimeRange != nil {
+			reqBody.TimeRange = options[0].TimeRange
+		}
+		if options[0].Days != 0 {
+			reqBody.Days = options[0].Days
+		}
+		reqBody.IncludeAnswer = options[0].IncludeAnswer
+		reqBody.IncludeRawContent = options[0].IncludeRawContent
+		reqBody.IncludeImages = options[0].IncludeImages
+		reqBody.IncludeImageDescriptions = options[0].IncludeImageDescriptions
+		if len(options[0].IncludeDomains) > 0 {
+			reqBody.IncludeDomains = options[0].IncludeDomains
+		}
+		if len(options[0].ExcludeDomains) > 0 {
+			reqBody.ExcludeDomains = options[0].ExcludeDomains
+		}
+		if options[0].Start != 0 {
+			reqBody.Start = options[0].Start
+		}
 	}
 
 	// Marshal the request body to JSON

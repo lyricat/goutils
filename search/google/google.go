@@ -42,13 +42,24 @@ func NewSearchClient(apiKey, cx string) *SearchClient {
 }
 
 // Search executes a search query with pagination
-func (s *SearchClient) Search(query string, start int) (*SearchResponse, error) {
+func (s *SearchClient) Search(query string, start int, options ...map[string]string) (*SearchResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	query = url.QueryEscape(query)
+	queryParams := url.Values{}
+	queryParams.Set("key", s.APIKey)
+	queryParams.Set("cx", s.CX)
+	queryParams.Set("q", query)
+	queryParams.Set("start", fmt.Sprintf("%d", start))
+	// Append additional options if provided
+	if len(options) > 0 {
+		for k, v := range options[0] {
+			queryParams.Set(k, v)
+		}
+	}
 
-	url := fmt.Sprintf("%s?key=%s&cx=%s&q=%s&start=%d", googleSearchAPI, s.APIKey, s.CX, query, start)
+	url := fmt.Sprintf("%s?%s", googleSearchAPI, queryParams.Encode())
+
 	slog.Info("Sending search request", "query", query, "start", start)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
