@@ -184,6 +184,11 @@ func (s *Instant) RawRequestWithParams(ctx context.Context, messages []core.Mess
 		if err != nil {
 			return nil, err
 		}
+
+		ret.Usage = resp.Data.Usage
+		ret.Costs = resp.Data.Costs
+		ret.CostTime = resp.Data.CostTime
+
 		if _opts.Format == core.FormatJSON {
 			ret.Json = resp.Data.Result
 			buf, err := json.Marshal(ret.Json)
