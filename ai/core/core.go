@@ -79,10 +79,19 @@ type (
 		ImageCount               int `json:"image_count,omitempty"`
 	}
 
+	ResultCosts struct {
+		CacheInputCost string `json:"cache_input_cost"`
+		InputCost      string `json:"input_cost"`
+		OutputCost     string `json:"output_cost"`
+		TotalCost      string `json:"total_cost"`
+	}
+
 	Result struct {
-		Text  string         `json:"text"`
-		Json  map[string]any `json:"json"`
-		Usage ResultUsage    `json:"usage"`
+		Text     string         `json:"text"`
+		Json     map[string]any `json:"json"`
+		Usage    ResultUsage    `json:"usage"`
+		Costs    ResultCosts    `json:"consts"`
+		CostTime int            `json:"cost_time"`
 	}
 
 	AIInstant interface {

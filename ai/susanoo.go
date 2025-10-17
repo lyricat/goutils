@@ -45,15 +45,18 @@ type (
 
 	SusanooTaskResultResponse struct {
 		Data struct {
-			ID           int            `json:"id"`
-			ProxyID      int            `json:"proxy_id"`
-			Result       map[string]any `json:"result"`
-			Status       int            `json:"status"`
-			TraceID      string         `json:"trace_id"`
-			ScheduledAt  string         `json:"scheduled_at"`
-			CreatedAt    string         `json:"created_at"`
-			UpdatedAt    string         `json:"updated_at"`
-			PendingCount int            `json:"pending_count"`
+			ID           int              `json:"id"`
+			ProxyID      int              `json:"proxy_id"`
+			Result       map[string]any   `json:"result"`
+			Status       int              `json:"status"`
+			TraceID      string           `json:"trace_id"`
+			ScheduledAt  string           `json:"scheduled_at"`
+			CreatedAt    string           `json:"created_at"`
+			UpdatedAt    string           `json:"updated_at"`
+			PendingCount int              `json:"pending_count"`
+			Usage        core.ResultUsage `json:"usage"`
+			Costs        core.ResultCosts `json:"costs"`
+			CostTime     int              `json:"cost_time"`
 		} `json:"data"`
 		Ts int `json:"ts"`
 	}
