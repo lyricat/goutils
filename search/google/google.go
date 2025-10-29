@@ -22,9 +22,10 @@ type SearchClient struct {
 
 // SearchResult represents a single search result
 type SearchResult struct {
-	Title   string `json:"title"`
-	Link    string `json:"link"`
-	Snippet string `json:"snippet"`
+	Title   string         `json:"title"`
+	Link    string         `json:"link"`
+	Snippet string         `json:"snippet"`
+	Pagemap map[string]any `json:"pagemap"`
 }
 
 // SearchResponse represents the API response
@@ -60,7 +61,7 @@ func (s *SearchClient) Search(query string, start int, options ...map[string]str
 
 	url := fmt.Sprintf("%s?%s", googleSearchAPI, queryParams.Encode())
 
-	slog.Info("Sending search request", "query", query, "start", start)
+	slog.Info("Sending search request", "query", query, "start", start, "options", options)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
