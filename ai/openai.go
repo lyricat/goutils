@@ -63,13 +63,7 @@ func (s *Instant) OpenAIRawRequest(ctx context.Context, messages []openai.ChatCo
 
 		r := &core.Result{Text: text}
 		r.Usage.InputTokens = resp.Usage.PromptTokens
-		r.Usage.OutputTokens = resp.Usage.CompletionTokens
-
-		if s.cfg.Provider == core.ProviderGemini {
-			// for gemini, the output token is different. the completion_tokens is always less than actual output tokens
-			// use the total_tokens - prompt_tokens  directly
-			r.Usage.OutputTokens = resp.Usage.TotalTokens - resp.Usage.PromptTokens
-		}
+		r.Usage.OutputTokens = resp.Usage.TotalTokens - resp.Usage.PromptTokens
 
 		if resp.Usage.PromptTokensDetails != nil {
 			r.Usage.CacheInputTokens = resp.Usage.PromptTokensDetails.CachedTokens
