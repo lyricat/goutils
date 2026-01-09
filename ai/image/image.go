@@ -95,6 +95,9 @@ func (c *ImageClient) CreateImages(ctx context.Context, input *CreateImagesInput
 }
 
 func pickProviderByModel(model string) string {
+	if strings.HasPrefix(model, "gemini-") || strings.HasPrefix(model, "imagen-") {
+		return "gemini"
+	}
 	if strings.Contains(model, "gpt-") {
 		return "openai"
 	}
