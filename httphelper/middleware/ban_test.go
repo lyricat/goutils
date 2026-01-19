@@ -201,6 +201,62 @@ func TestBanMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("does not blacklist cloudflare ip on malicious path", func(t *testing.T) {
+		ban := newTestBan(t, nil)
+
+		handler := ban.Handler(baseHandler)
+		cfIP := "104.16.0.1"
+		req := httptest.NewRequest("GET", "/.env", nil)
+		req.RemoteAddr = cfIP + ":1234"
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected status %d, got %d", http.StatusNotFound, rr.Code)
+		}
+
+		isMember, err := ban.rdb.SIsMember(context.Background(), ban.rdbBlacklistKey, cfIP).Result()
+		if err != nil {
+			t.Fatalf("failed to check redis set member: %v", err)
+		}
+		if isMember {
+			t.Error("cloudflare ip should not be added to the Redis blacklist")
+		}
+
+		key := fmt.Sprintf(ban.rdbKey, cfIP)
+		if _, err := ban.rdb.Get(context.Background(), key).Result(); err == nil {
+			t.Error("cloudflare ip should not have a ban key set")
+		} else if err != redis.Nil {
+			t.Fatalf("failed to read ban key from redis: %v", err)
+		}
+
+		reqNormal := httptest.NewRequest("GET", "/", nil)
+		reqNormal.RemoteAddr = cfIP + ":1234"
+		rrNormal := httptest.NewRecorder()
+		handler.ServeHTTP(rrNormal, reqNormal)
+
+		if rrNormal.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d", http.StatusOK, rrNormal.Code)
+		}
+	})
+
+	t.Run("filters cloudflare cidr from initial blacklist", func(t *testing.T) {
+		cfCIDR := "104.16.0.0/13"
+		ban := newTestBan(t, []string{cfCIDR})
+
+		isMember, err := ban.rdb.SIsMember(context.Background(), ban.rdbBlacklistKey, cfCIDR).Result()
+		if err != nil {
+			t.Fatalf("failed to check redis set member: %v", err)
+		}
+		if isMember {
+			t.Errorf("cloudflare cidr should not be added to the Redis blacklist")
+		}
+
+		if ban.IsBannedIP("104.16.0.1") {
+			t.Error("cloudflare ip should not be considered banned via cidr")
+		}
+	})
+
 	t.Run("uses initial blacklist provided at creation", func(t *testing.T) {
 		initialBlacklist := []string{"4.4.4.4", "5.5.0.0/16"}
 		ban := newTestBan(t, initialBlacklist)
