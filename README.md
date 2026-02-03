@@ -79,7 +79,69 @@ func (tc *TweetCache) DeleteExpiredFromQdrant(ctx context.Context) error {
 }
 ```
 
-### AI
+### AIX (Unified AI API)
+
+The `aix` package is the new unified AI interface (Functional Options). It supports chat, embeddings, images, rerank, and classify while keeping provider differences behind adapters.
+
+```go
+import "github.com/lyricat/goutils/aix"
+
+cfg := aix.Config{
+	Provider:     "openai",
+	OpenAIAPIKey: "sk-...",
+	OpenAIModel:  "gpt-4.1-mini",
+}
+client := aix.New(cfg)
+
+resp, err := client.Chat(ctx,
+	aix.WithModel("gpt-4.1-mini"),
+	aix.WithMessages(
+		aix.System("You are a helpful assistant."),
+		aix.User("hello"),
+	),
+	aix.WithTemperature(0.7),
+)
+```
+
+Tool calling:
+
+```go
+resp, err := client.Chat(ctx,
+	aix.WithModel("gpt-4.1-mini"),
+	aix.WithMessages(aix.User("What's the weather in Tokyo?")),
+	aix.WithTools([]aix.Tool{
+		aix.FunctionTool("get_weather", "Get current weather", []byte(`{
+			"type": "object",
+			"properties": { "city": { "type": "string" } },
+			"required": ["city"]
+		}`)),
+	}),
+	aix.WithToolChoice(aix.ToolChoiceAuto()),
+)
+```
+
+OpenAI compatibility adapter:
+
+```go
+import aixopenai "github.com/lyricat/goutils/aix/chat/openai"
+
+aixOpenAI := aixopenai.New(client)
+openaiResp, err := aixOpenAI.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	Model: "gpt-4.1-mini",
+	Messages: []openai.ChatCompletionMessage{
+		{Role: "user", Content: "hello"},
+	},
+})
+```
+
+Embeddings / Images:
+
+```go
+emb, err := client.Embedding(ctx, aix.Embedding("text-embedding-3-small", "hello"))
+img, err := client.Image(ctx, aix.Image("gpt-image-1", "a minimal line-art cat"), aix.WithCount(1))
+```
+
+### AI (Legacy)
 
 The `ai` package provides useful functions for AI related tasks, and it supports multiple AI providers:
 
