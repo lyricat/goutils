@@ -21,17 +21,17 @@ const (
 )
 
 // GenKeyPair creates a random X25519 key pair. Returns (privateKey, publicKey) in base64.
-func GenKeyPair() (string, string) {
+func GenKeyPair() (string, string, error) {
 	priv := make([]byte, curve25519.ScalarSize)
 	if _, err := rand.Read(priv); err != nil {
-		panic(err)
+		return "", "", err
 	}
 	pub, err := curve25519.X25519(priv, curve25519.Basepoint)
 	if err != nil {
-		panic(err)
+		return "", "", err
 	}
 	return base64.RawStdEncoding.EncodeToString(priv),
-		base64.RawStdEncoding.EncodeToString(pub)
+		base64.RawStdEncoding.EncodeToString(pub), nil
 }
 
 func Encrypt(plaintext, base64ReceiverPub string) (string, error) {

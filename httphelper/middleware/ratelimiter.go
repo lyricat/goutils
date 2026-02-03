@@ -44,17 +44,16 @@ type ctxKey int
 
 const RouteNotFoundContextKey ctxKey = iota
 
-func RateLimiter(params RateLimiterParams) func(next http.Handler) http.Handler {
+func RateLimiter(params RateLimiterParams) (func(next http.Handler) http.Handler, error) {
 	if params.RdbKey == "" {
 		params.RdbKey = "limiter-%s:%s"
+	}
+	if params.Rdb == nil {
+		return nil, errors.New("redis client is nil")
 	}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if params.Rdb == nil {
-				panic("Rdb is nil")
-			}
-
 			ctx := r.Context()
 
 			ip := util.GetRemoteIP(r)
@@ -80,7 +79,12 @@ func RateLimiter(params RateLimiterParams) func(next http.Handler) http.Handler 
 				slog.Warn("[goutils] time.ParseDuration failed, use default value", "error", err, "period", params.RateLimitConfig.GlobalRateLimit.Period)
 				period = defaultPeriod
 			}
-			if count, err := hit(ctx, params.Rdb, "ip", path, period, params.RateLimitConfig.GlobalRateLimit.Threshold); err != nil {
+			globalThreshold := params.RateLimitConfig.GlobalRateLimit.Threshold
+			if globalThreshold <= 0 {
+				globalThreshold = 1000
+			}
+			globalKey := fmt.Sprintf(params.RdbKey, "ip", path)
+			if count, err := hit(ctx, params.Rdb, globalKey, period, globalThreshold); err != nil {
 				slog.Warn("[goutils] limiter.GlobalHit", "error", err, "ip", ip, "url", r.URL.Path, "period", period, "count", count)
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
@@ -109,7 +113,8 @@ func RateLimiter(params RateLimiterParams) func(next http.Handler) http.Handler 
 				}
 			}
 
-			if count, err := hit(ctx, params.Rdb, "ip", path, period, thd); err != nil {
+			routeKey := fmt.Sprintf(params.RdbKey, "ip", path)
+			if count, err := hit(ctx, params.Rdb, routeKey, period, thd); err != nil {
 				slog.Warn("[goutils] limiter.Hit", "error", err, "ip", ip, "url", r.URL.Path, "period", period, "count", count)
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
@@ -117,11 +122,10 @@ func RateLimiter(params RateLimiterParams) func(next http.Handler) http.Handler 
 
 			next.ServeHTTP(w, r)
 		})
-	}
+	}, nil
 }
 
-func hit(ctx context.Context, rdb *redis.Client, category, path string, expiry time.Duration, maxHit int64) (int64, error) {
-	key := fmt.Sprintf("limiter-%s:%s", category, path)
+func hit(ctx context.Context, rdb *redis.Client, key string, expiry time.Duration, maxHit int64) (int64, error) {
 	count, err := rdb.Incr(ctx, key).Result()
 	if err != nil {
 		return 0, err
@@ -140,5 +144,5 @@ func hit(ctx context.Context, rdb *redis.Client, category, path string, expiry t
 		return count, errors.New("too many requests")
 	}
 
-	return 0, nil
+	return count, nil
 }

@@ -13,10 +13,14 @@ import "github.com/lyricat/goutils"
 ### Qdrant
 
 ```go
-	qd := qdrant.New(qdrant.Config{
+	qd, err := qdrant.New(qdrant.Config{
 		Addr:	"Qdrant.Addr",
 		APIKey: "Qdrant.APIKey",
 	})
+	if err != nil {
+		slog.Error("[index] qdrant init failed", "error", err)
+		return
+	}
 	if _, err := qd.Check(); err != nil {
 		slog.Error("[index] qdrant check failed", "error", err)
 	}

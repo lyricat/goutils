@@ -11,29 +11,32 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func (tr *TweetsResponse) PrettyPrint() {
+func (tr *TweetsResponse) PrettyPrint(w io.Writer) {
+	if w == nil {
+		w = io.Discard
+	}
 	// print the tweets in Data. If the referenced tweet is present, find it from includes.Tweets and  print that as well
 	for _, tweet := range tr.Data {
-		fmt.Printf("- Tweet ID: %s\n", tweet.ID)
-		fmt.Printf("- Text: %s\n", tweet.Text)
-		fmt.Printf("- Author ID: %s\n", tweet.AuthorID)
+		fmt.Fprintf(w, "- Tweet ID: %s\n", tweet.ID)
+		fmt.Fprintf(w, "- Text: %s\n", tweet.Text)
+		fmt.Fprintf(w, "- Author ID: %s\n", tweet.AuthorID)
 		if len(tweet.ReferencedTweets) > 0 {
 			for _, rt := range tweet.ReferencedTweets {
 				for _, t := range tr.Includes.Tweets {
 					if t.ID == rt.ID {
-						fmt.Printf("\t- Referenced Tweet Type: %s\n", rt.Type)
-						fmt.Printf("\t- Referenced Tweet ID: %s\n", t.ID)
-						fmt.Printf("\t- Referenced Tweet Text: %s\n", t.Text)
-						fmt.Printf("\t- Referenced Tweet Author ID: %s\n", t.AuthorID)
+						fmt.Fprintf(w, "\t- Referenced Tweet Type: %s\n", rt.Type)
+						fmt.Fprintf(w, "\t- Referenced Tweet ID: %s\n", t.ID)
+						fmt.Fprintf(w, "\t- Referenced Tweet Text: %s\n", t.Text)
+						fmt.Fprintf(w, "\t- Referenced Tweet Author ID: %s\n", t.AuthorID)
 					}
 				}
 			}
 		}
-		fmt.Printf("- Metrics: %+v\n", tweet.PublicMetrics)
-		fmt.Printf("- Entities: %+v\n", tweet.Entities)
-		fmt.Println()
+		fmt.Fprintf(w, "- Metrics: %+v\n", tweet.PublicMetrics)
+		fmt.Fprintf(w, "- Entities: %+v\n", tweet.Entities)
+		fmt.Fprintln(w)
 	}
-	fmt.Printf("Total Tweets: %d\n", len(tr.Data))
+	fmt.Fprintf(w, "Total Tweets: %d\n", len(tr.Data))
 }
 
 // GetTweetsFromList retrieves recent tweets from a given Twitter List

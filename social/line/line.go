@@ -81,14 +81,18 @@ func (s *Client) GenerateToken() (string, *time.Time, error) {
 
 func (s *Client) SendPushMessage(ctx context.Context, groupID, title, summary, url string) error {
 	content := fmt.Sprintf("%s\n%s\n\n👉 %s", title, summary, url)
-	_, err := s.bot.PushMessage(&messaging_api.PushMessageRequest{
+	msgID, err := uuid.New()
+	if err != nil {
+		return err
+	}
+	_, err = s.bot.PushMessage(&messaging_api.PushMessageRequest{
 		To: groupID,
 		Messages: []messaging_api.MessageInterface{
 			messaging_api.TextMessage{
 				Text: content,
 			},
 		},
-	}, uuid.New())
+	}, msgID)
 
 	if err != nil {
 		return err
@@ -187,7 +191,7 @@ func (s *Client) SendBroadcaseMessage(ctx context.Context, title, summary, cover
 				},
 			},
 		},
-	}, uuid.New())
+	})
 	if err != nil {
 		return err
 	}

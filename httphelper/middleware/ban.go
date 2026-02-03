@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -43,7 +44,7 @@ func NewBan(params BanParams) (*Ban, error) {
 		params.RdbKey = "ban-%s"
 	}
 	if params.Rdb == nil {
-		panic("Rdb is nil")
+		return nil, errors.New("redis client is nil")
 	}
 
 	if params.RdbBlacklistKey == "" {
@@ -93,7 +94,7 @@ func NewBan(params BanParams) (*Ban, error) {
 
 func (b *Ban) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.Background()
+		ctx := r.Context()
 		ipStr := util.GetRemoteIP(r)
 		ip := net.ParseIP(ipStr)
 		isCloudflare := b.isCloudflareIP(ip)

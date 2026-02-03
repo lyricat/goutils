@@ -3,6 +3,7 @@ package qdrant
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -137,13 +138,13 @@ func genInterceptor(apiKey string) grpc.UnaryClientInterceptor {
 	}
 }
 
-func New(cfg Config) *QdrantClient {
+func New(cfg Config) (*QdrantClient, error) {
 	config := &tls.Config{}
 	interceptor := genInterceptor(cfg.APIKey)
 	conn, err := grpc.NewClient(cfg.Addr, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithUnaryInterceptor(interceptor))
 	if err != nil {
 		slog.Error("did not connect", "error", err)
-		panic(err)
+		return nil, err
 	}
 
 	ColCli := pb.NewCollectionsClient(conn)
@@ -153,7 +154,7 @@ func New(cfg Config) *QdrantClient {
 		APIKey: cfg.APIKey,
 		ColCli: ColCli,
 		Conn:   conn,
-	}
+	}, nil
 }
 
 func (c *QdrantClient) Check() (string, error) {
@@ -203,30 +204,11 @@ func (c *QdrantClient) GetPoints(ctx context.Context, params GetPointsParams) (*
 func (c *QdrantClient) UpsertPoints(ctx context.Context, params UpsertPointsParams) error {
 	payload := make(map[string]*pb.Value)
 	for k, v := range params.Payload {
-		switch v.Type {
-		case "int":
-			vint := int64(v.Value.(int64))
-			payload[k] = &pb.Value{
-				Kind: &pb.Value_IntegerValue{IntegerValue: vint},
-			}
-		case "uint":
-			vint := int64(v.Value.(uint64))
-			payload[k] = &pb.Value{
-				Kind: &pb.Value_IntegerValue{IntegerValue: vint},
-			}
-		case "double":
-			payload[k] = &pb.Value{
-				Kind: &pb.Value_DoubleValue{DoubleValue: v.Value.(float64)},
-			}
-		case "bool":
-			payload[k] = &pb.Value{
-				Kind: &pb.Value_BoolValue{BoolValue: v.Value.(bool)},
-			}
-		case "text":
-			payload[k] = &pb.Value{
-				Kind: &pb.Value_StringValue{StringValue: v.Value.(string)},
-			}
+		pbValue, err := toPBValue(k, v)
+		if err != nil {
+			return err
 		}
+		payload[k] = pbValue
 	}
 
 	waitUpsert := params.WaitUpsert
@@ -252,6 +234,7 @@ func (c *QdrantClient) UpsertPoints(ctx context.Context, params UpsertPointsPara
 		Points:         upsertPoints,
 	}); err != nil {
 		slog.Error("could not upsert points", "error", err)
+		return err
 	}
 
 	return nil
@@ -269,9 +252,210 @@ func (c *QdrantClient) DeletePoints(ctx context.Context, params DeletePointsPara
 		Points:         selector,
 	}); err != nil {
 		slog.Error("could not delete points", "error", err)
+		return err
 	}
 
 	return nil
+}
+
+const (
+	maxInt64 = int64(^uint64(0) >> 1)
+	minInt64 = -maxInt64 - 1
+)
+
+func toPBValue(key string, item UpsertPointPayloadItem) (*pb.Value, error) {
+	switch item.Type {
+	case "int":
+		vint, err := toInt64(item.Value)
+		if err != nil {
+			return nil, fmt.Errorf("payload %q: %w", key, err)
+		}
+		return &pb.Value{Kind: &pb.Value_IntegerValue{IntegerValue: vint}}, nil
+	case "uint":
+		vuint, err := toUint64(item.Value)
+		if err != nil {
+			return nil, fmt.Errorf("payload %q: %w", key, err)
+		}
+		if vuint > uint64(maxInt64) {
+			return nil, fmt.Errorf("payload %q: uint value overflows int64", key)
+		}
+		return &pb.Value{Kind: &pb.Value_IntegerValue{IntegerValue: int64(vuint)}}, nil
+	case "double":
+		vfloat, err := toFloat64(item.Value)
+		if err != nil {
+			return nil, fmt.Errorf("payload %q: %w", key, err)
+		}
+		return &pb.Value{Kind: &pb.Value_DoubleValue{DoubleValue: vfloat}}, nil
+	case "bool":
+		vbool, ok := item.Value.(bool)
+		if !ok {
+			return nil, fmt.Errorf("payload %q: expected bool, got %T", key, item.Value)
+		}
+		return &pb.Value{Kind: &pb.Value_BoolValue{BoolValue: vbool}}, nil
+	case "text":
+		vtext, ok := item.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("payload %q: expected string, got %T", key, item.Value)
+		}
+		return &pb.Value{Kind: &pb.Value_StringValue{StringValue: vtext}}, nil
+	default:
+		return nil, fmt.Errorf("payload %q: unsupported type %q", key, item.Type)
+	}
+}
+
+func toInt64(value any) (int64, error) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), nil
+	case int8:
+		return int64(v), nil
+	case int16:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case uint:
+		if v > uint(maxInt64) {
+			return 0, fmt.Errorf("uint overflows int64")
+		}
+		return int64(v), nil
+	case uint8:
+		return int64(v), nil
+	case uint16:
+		return int64(v), nil
+	case uint32:
+		return int64(v), nil
+	case uint64:
+		if v > uint64(maxInt64) {
+			return 0, fmt.Errorf("uint64 overflows int64")
+		}
+		return int64(v), nil
+	case float32:
+		return floatToInt64(float64(v))
+	case float64:
+		return floatToInt64(v)
+	case json.Number:
+		i, err := v.Int64()
+		if err != nil {
+			return 0, fmt.Errorf("invalid json number: %w", err)
+		}
+		return i, nil
+	default:
+		return 0, fmt.Errorf("expected int value, got %T", value)
+	}
+}
+
+func floatToInt64(v float64) (int64, error) {
+	if v > float64(maxInt64) || v < float64(minInt64) {
+		return 0, fmt.Errorf("float64 overflows int64")
+	}
+	if v != float64(int64(v)) {
+		return 0, fmt.Errorf("float64 is not an integer")
+	}
+	return int64(v), nil
+}
+
+func toUint64(value any) (uint64, error) {
+	switch v := value.(type) {
+	case int:
+		if v < 0 {
+			return 0, fmt.Errorf("negative int for uint")
+		}
+		return uint64(v), nil
+	case int8:
+		if v < 0 {
+			return 0, fmt.Errorf("negative int8 for uint")
+		}
+		return uint64(v), nil
+	case int16:
+		if v < 0 {
+			return 0, fmt.Errorf("negative int16 for uint")
+		}
+		return uint64(v), nil
+	case int32:
+		if v < 0 {
+			return 0, fmt.Errorf("negative int32 for uint")
+		}
+		return uint64(v), nil
+	case int64:
+		if v < 0 {
+			return 0, fmt.Errorf("negative int64 for uint")
+		}
+		return uint64(v), nil
+	case uint:
+		return uint64(v), nil
+	case uint8:
+		return uint64(v), nil
+	case uint16:
+		return uint64(v), nil
+	case uint32:
+		return uint64(v), nil
+	case uint64:
+		return v, nil
+	case float32:
+		return floatToUint64(float64(v))
+	case float64:
+		return floatToUint64(v)
+	case json.Number:
+		i, err := v.Int64()
+		if err != nil {
+			return 0, fmt.Errorf("invalid json number: %w", err)
+		}
+		if i < 0 {
+			return 0, fmt.Errorf("negative json number for uint")
+		}
+		return uint64(i), nil
+	default:
+		return 0, fmt.Errorf("expected uint value, got %T", value)
+	}
+}
+
+func floatToUint64(v float64) (uint64, error) {
+	if v < 0 || v > float64(^uint64(0)) {
+		return 0, fmt.Errorf("float64 overflows uint64")
+	}
+	if v != float64(uint64(v)) {
+		return 0, fmt.Errorf("float64 is not an integer")
+	}
+	return uint64(v), nil
+}
+
+func toFloat64(value any) (float64, error) {
+	switch v := value.(type) {
+	case float32:
+		return float64(v), nil
+	case float64:
+		return v, nil
+	case int:
+		return float64(v), nil
+	case int8:
+		return float64(v), nil
+	case int16:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	case uint:
+		return float64(v), nil
+	case uint8:
+		return float64(v), nil
+	case uint16:
+		return float64(v), nil
+	case uint32:
+		return float64(v), nil
+	case uint64:
+		return float64(v), nil
+	case json.Number:
+		f, err := v.Float64()
+		if err != nil {
+			return 0, fmt.Errorf("invalid json number: %w", err)
+		}
+		return f, nil
+	default:
+		return 0, fmt.Errorf("expected float value, got %T", value)
+	}
 }
 
 func (c *QdrantClient) SearchPointsWithFilter(ctx context.Context, params SearchPointsParams) ([]*QdrantPoint, error) {

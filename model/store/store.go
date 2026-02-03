@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -14,6 +16,7 @@ import (
 )
 
 var defaultHandler *Handler
+var defaultHandlerMu sync.Mutex
 
 type handlerKey struct{}
 
@@ -36,8 +39,9 @@ func NewContext(ctx context.Context, h *Handler) context.Context {
 	return context.WithValue(ctx, handlerKey{}, h)
 }
 
-func WithContext(ctx context.Context) *Handler {
-	return ctx.Value(handlerKey{}).(*Handler)
+func WithContext(ctx context.Context) (*Handler, bool) {
+	h, ok := ctx.Value(handlerKey{}).(*Handler)
+	return h, ok
 }
 
 func MustInit(cfg Config) *Handler {
@@ -50,6 +54,8 @@ func MustInit(cfg Config) *Handler {
 }
 
 func Init(cfg Config) (*Handler, error) {
+	defaultHandlerMu.Lock()
+	defer defaultHandlerMu.Unlock()
 	if defaultHandler != nil {
 		return defaultHandler, nil
 	}
@@ -75,7 +81,7 @@ func Init(cfg Config) (*Handler, error) {
 			Logger: logger,
 		})
 	default:
-		panic("unknown driver")
+		return nil, fmt.Errorf("unknown driver: %s", cfg.Driver)
 	}
 	if err != nil {
 		return nil, err
@@ -114,6 +120,9 @@ func Generate() {
 }
 
 func Transaction(f func(tx *Handler) error) error {
+	if defaultHandler == nil {
+		return errors.New("store handler is not initialized")
+	}
 	return defaultHandler.Transaction(func(db *gorm.DB) error {
 		return f(&Handler{
 			DB: db,

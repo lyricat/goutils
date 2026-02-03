@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -70,22 +71,23 @@ type (
 	}
 )
 
-func New(
-	cfg Config,
-) *Storage {
-	ctx := context.TODO()
+func New(ctx context.Context, cfg Config) (*Storage, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var awscfg aws.Config
 	var s3Client *s3.Client
 	var err error
 	bucket := ""
-	if cfg.Provider == StorageProviderR2 {
+	switch cfg.Provider {
+	case StorageProviderR2:
 		awscfg, err = awsconfig.LoadDefaultConfig(
 			ctx,
 			awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.R2.AccessKey, cfg.R2.AccessKeySecret, "")),
 			awsconfig.WithRegion("auto"),
 		)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		s3Client = s3.NewFromConfig(awscfg, func(o *s3.Options) {
@@ -94,14 +96,14 @@ func New(
 		})
 		bucket = cfg.R2.Bucket
 
-	} else if cfg.Provider == StorageProviderS3 {
+	case StorageProviderS3:
 		awscfg, err = awsconfig.LoadDefaultConfig(
 			ctx,
 			awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.S3.AccessKey, cfg.S3.AccessKeySecret, "")),
 			awsconfig.WithRegion(cfg.S3.Region),
 		)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		s3Client = s3.NewFromConfig(awscfg, func(o *s3.Options) {
@@ -109,13 +111,16 @@ func New(
 			o.BaseEndpoint = aws.String(fmt.Sprintf("https://s3.%s.amazonaws.com", cfg.S3.Region))
 		})
 		bucket = cfg.S3.Bucket
+	case StorageProviderLocal:
+	default:
+		return nil, fmt.Errorf("invalid storage provider: %s", cfg.Provider)
 	}
 
 	return &Storage{
 		cfg:      cfg,
 		s3Client: s3Client,
 		bucket:   bucket,
-	}
+	}, nil
 }
 
 func (st *Storage) WriteAsReader(ctx context.Context, input *WriteAsReaderInput) error {
@@ -132,8 +137,8 @@ func (st *Storage) WriteAsReader(ctx context.Context, input *WriteAsReaderInput)
 		}
 
 	} else if st.cfg.Provider == StorageProviderLocal {
-		fullpath := path.Join(st.cfg.LocalPath, input.Filepath, input.Filename)
-		if err := st.CheckPath(ctx, path.Join(st.cfg.LocalPath, input.Filepath)); err != nil {
+		fullpath := filepath.Join(st.cfg.LocalPath, input.Filepath, input.Filename)
+		if err := st.CheckPath(ctx, filepath.Join(st.cfg.LocalPath, input.Filepath)); err != nil {
 			return err
 		}
 		fd, err := os.Create(fullpath)
@@ -169,8 +174,8 @@ func (st *Storage) Write(ctx context.Context, input *WriteInput) error {
 		}
 
 	} else if st.cfg.Provider == StorageProviderLocal {
-		fullpath := path.Join(st.cfg.LocalPath, input.Filepath, input.Filename)
-		if err := st.CheckPath(ctx, path.Join(st.cfg.LocalPath, input.Filepath)); err != nil {
+		fullpath := filepath.Join(st.cfg.LocalPath, input.Filepath, input.Filename)
+		if err := st.CheckPath(ctx, filepath.Join(st.cfg.LocalPath, input.Filepath)); err != nil {
 			return err
 		}
 		// write to local
@@ -185,15 +190,15 @@ func (st *Storage) Write(ctx context.Context, input *WriteInput) error {
 	return nil
 }
 
-func (st *Storage) Delete(ctx context.Context, filepath, filename string) error {
+func (st *Storage) Delete(ctx context.Context, dir, filename string) error {
 	if st.cfg.Provider == StorageProviderR2 || st.cfg.Provider == StorageProviderS3 {
-		key := path.Join(filepath, filename)
+		key := path.Join(dir, filename)
 		if err := st.S3Delete(ctx, st.bucket, key); err != nil {
 			return err
 		}
 
 	} else if st.cfg.Provider == StorageProviderLocal {
-		fullpath := path.Join(st.cfg.LocalPath, filepath, filename)
+		fullpath := filepath.Join(st.cfg.LocalPath, dir, filename)
 		if _, err := os.Stat(fullpath); err == nil {
 			if err := os.Remove(fullpath); err != nil {
 				return err
@@ -214,7 +219,7 @@ func (st *Storage) DeleteByPrefix(ctx context.Context, prefix string) error {
 		}
 
 	} else if st.cfg.Provider == StorageProviderLocal {
-		fullpath := path.Join(st.cfg.LocalPath, prefix)
+		fullpath := filepath.Join(st.cfg.LocalPath, prefix)
 		if _, err := os.Stat(fullpath); err == nil {
 			if err := os.RemoveAll(fullpath); err != nil {
 				return err
@@ -228,13 +233,13 @@ func (st *Storage) DeleteByPrefix(ctx context.Context, prefix string) error {
 	return nil
 }
 
-func (st *Storage) GetAsReader(ctx context.Context, filepath, filename string) (io.Reader, error) {
+func (st *Storage) GetAsReader(ctx context.Context, dir, filename string) (io.Reader, error) {
 	if st.cfg.Provider == StorageProviderR2 || st.cfg.Provider == StorageProviderS3 {
-		key := path.Join(filepath, filename)
+		key := path.Join(dir, filename)
 		return st.S3GetAsReader(ctx, st.bucket, key)
 
 	} else if st.cfg.Provider == StorageProviderLocal {
-		fullpath := path.Join(st.cfg.LocalPath, filepath, filename)
+		fullpath := filepath.Join(st.cfg.LocalPath, dir, filename)
 		if _, err := os.Stat(fullpath); err == nil {
 			return os.Open(fullpath)
 		} else {
@@ -246,12 +251,12 @@ func (st *Storage) GetAsReader(ctx context.Context, filepath, filename string) (
 	}
 }
 
-func (st *Storage) CheckPath(ctx context.Context, filepath string) error {
-	if _, err := os.Stat(filepath); err == nil {
+func (st *Storage) CheckPath(ctx context.Context, dir string) error {
+	if _, err := os.Stat(dir); err == nil {
 		return nil
 
 	} else if errors.Is(err, os.ErrNotExist) {
-		if err := os.MkdirAll(filepath, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
 		}
 		return nil

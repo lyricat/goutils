@@ -7,8 +7,12 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-func New() string {
-	return uuid.Must(uuid.NewV4()).String()
+func New() (string, error) {
+	id, err := uuid.NewV4()
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
 
 func IsUUID(id string) bool {
@@ -25,12 +29,12 @@ func MD5(input string) string {
 	return uuid.FromBytesOrNil(sum).String()
 }
 
-func Modify(id, modifier string) string {
+func Modify(id, modifier string) (string, error) {
 	ns, err := uuid.FromString(id)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return uuid.NewV5(ns, modifier).String()
+	return uuid.NewV5(ns, modifier).String(), nil
 }
 
 func FromString(id string) (uuid.UUID, error) {
