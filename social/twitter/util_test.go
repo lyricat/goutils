@@ -19,7 +19,7 @@ func TestCheckAPIResponseIncludesRequestContext(t *testing.T) {
 	}})))
 	defer slog.SetDefault(prev)
 
-	req, err := http.NewRequest(http.MethodGet, "https://api.x.com/2/lists/123/tweets?max_results=100", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://api.x.com/2/tweets?expansions=author_id%2Creferenced_tweets.id&ids=1%2C2%2C3", nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestCheckAPIResponseIncludesRequestContext(t *testing.T) {
 
 	errText := err.Error()
 	for _, want := range []string{
-		"GET https://api.x.com/2/lists/123/tweets?max_results=100 returned 503 Service Unavailable",
+		"GET https://api.x.com/2/tweets?expansions=author_id%2Creferenced_tweets.id&ids=1%2C2%2C3 returned 503 Service Unavailable",
 		"api_error: Service Unavailable - Service Unavailable (about:blank)",
 		`body: {"title":"Service Unavailable","detail":"Service Unavailable","type":"about:blank","status":503}`,
 		"x-rate-limit-limit=900",
@@ -54,13 +54,16 @@ func TestCheckAPIResponseIncludesRequestContext(t *testing.T) {
 			t.Fatalf("error %q does not contain %q", errText, want)
 		}
 	}
+	if bytes.Contains([]byte(errText), []byte("%!")) {
+		t.Fatalf("error %q still contains fmt formatting corruption", errText)
+	}
 
 	logText := buf.String()
 	for _, want := range []string{
 		"level=ERROR",
 		"msg=\"x api request failed\"",
 		"method=GET",
-		"url=\"https://api.x.com/2/lists/123/tweets?max_results=100\"",
+		"url=\"https://api.x.com/2/tweets?expansions=author_id%2Creferenced_tweets.id&ids=1%2C2%2C3\"",
 		"status=\"503 Service Unavailable\"",
 		"status_code=503",
 		"x_rate_limit_limit=900",

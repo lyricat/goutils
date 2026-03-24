@@ -60,7 +60,10 @@ func (c *Client) GetTweetsByIDs(ctx context.Context, token *oauth2.Token, tweetI
 
 	q := req.URL.Query()
 	q.Add("ids", strings.Join(tweetIDs, ","))
-	q.Add("tweet.fields", "author_id,created_at,entities,public_metrics,referenced_tweets,lang,attachments")
+	// Workaround: X intermittently returns 503 for large GetTweetsByIDs batches when
+	// entities is requested. The current feedstream updater caller only needs tweet
+	// text/timestamps/public_metrics for score refresh, so omit entities here.
+	q.Add("tweet.fields", "author_id,created_at,public_metrics,referenced_tweets,lang,attachments")
 	q.Add("user.fields", "id,name,profile_image_url,username,public_metrics")
 	q.Add("media.fields", "media_key,type,url,alt_text,duration_ms,height,preview_image_url,public_metrics,width")
 	q.Add("expansions", "author_id,referenced_tweets.id,attachments.media_keys")

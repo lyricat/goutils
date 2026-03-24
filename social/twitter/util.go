@@ -3,6 +3,7 @@ package twitter
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -112,7 +113,7 @@ func buildAPIResponseError(req *http.Request, resp *http.Response, body []byte) 
 		messageParts = append(messageParts, rateLimit)
 	}
 
-	return fmt.Errorf(strings.Join(messageParts, ", "))
+	return errors.New(strings.Join(messageParts, ", "))
 }
 
 func logAPIResponseError(req *http.Request, resp *http.Response, body []byte, err error) {
