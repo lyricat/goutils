@@ -191,7 +191,7 @@ func (s *Client) SendBroadcaseMessage(ctx context.Context, title, summary, cover
 				},
 			},
 		},
-	})
+	}, "")
 	if err != nil {
 		return err
 	}

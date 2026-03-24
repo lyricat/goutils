@@ -3,8 +3,9 @@ package twitter
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -40,35 +41,30 @@ func (c *Client) SearchTweets(ctx context.Context, token *oauth2.Token, query, n
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute search request: %w", err)
+		return nil, wrapAPIRequestError(req, "failed to execute search request", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		// Attempt to read error body for more details
-		var apiError SearchResponse
-		_ = json.NewDecoder(resp.Body).Decode(&apiError) // Ignore decode error here, focus on status
-		errorMsg := fmt.Sprintf("twitter api error: status %s", resp.Status)
-		if len(apiError.Errors) > 0 {
-			errorMsg = fmt.Sprintf("%s - %s: %s", errorMsg, apiError.Errors[0].Title, apiError.Errors[0].Detail)
-		} else if apiError.Errors != nil && apiError.Errors[0].Title != "" {
-			// Handle cases where the top-level 'errors' field might exist but be empty,
-			// or where a specific error structure is returned differently.
-			// This part might need adjustment based on actual error responses observed.
-			errorMsg = fmt.Sprintf("%s - Title: %s, Detail: %s", errorMsg, apiError.Errors[0].Title, apiError.Errors[0].Detail)
-		}
-		return nil, errors.New(errorMsg)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read search response: %w", err)
+	}
+
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	var searchResult SearchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
+	if err := json.Unmarshal(body, &searchResult); err != nil {
 		return nil, fmt.Errorf("failed to decode search response: %w", err)
 	}
 
 	// Check for errors within the JSON response body itself
 	if len(searchResult.Errors) > 0 {
 		apiErr := searchResult.Errors[0]
-		return nil, fmt.Errorf("twitter api error in response body - %s: %s (%s)", apiErr.Title, apiErr.Detail, apiErr.Type)
+		err := fmt.Errorf("%s %s returned API errors in response body: %s: %s (%s)", req.Method, req.URL.String(), apiErr.Title, apiErr.Detail, apiErr.Type)
+		slog.Error("x api response contained errors", "error", err, "method", req.Method, "url", req.URL.String())
+		return nil, err
 	}
 
 	return &searchResult, nil

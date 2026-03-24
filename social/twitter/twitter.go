@@ -138,19 +138,24 @@ func (c *Client) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserRes
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, wrapAPIRequestError(req, "failed to get user info", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get user info: %s", resp.Status)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read user info response: %w", err)
+	}
+
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	var result struct {
 		Data UserResponse `json:"data"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
 
@@ -175,27 +180,17 @@ func (c *Client) PostTweet(ctx context.Context, token *oauth2.Token, tweet strin
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", wrapAPIRequestError(req, "failed to post tweet", err)
 	}
 	defer resp.Body.Close()
 
-	// read headers 'x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset'
-	// headers := resp.Header
-	// slog.Info("resp.header", "x-rate-limit-limit", headers.Get("x-rate-limit-limit"))
-	// slog.Info("resp.header", "x-rate-limit-remaining", headers.Get("x-rate-limit-remaining"))
-	// slog.Info("resp.header", "x-rate-limit-reset", headers.Get("x-rate-limit-reset"))
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read post tweet response: %w", err)
+	}
 
-	if resp.StatusCode != http.StatusCreated {
-		// read body to get the string
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-
-		// reset the body
-		resp.Body = io.NopCloser(bytes.NewBuffer(body))
-
-		return "", fmt.Errorf("failed to post tweet: %s, %s", resp.Status, string(body))
+	if err := c.checkAPIResponse(req, resp, body, http.StatusCreated); err != nil {
+		return "", err
 	}
 
 	// decode JSON resp and get the tweet ID
@@ -204,7 +199,7 @@ func (c *Client) PostTweet(ctx context.Context, token *oauth2.Token, tweet strin
 			ID string `json:"id"`
 		} `json:"data"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return "", err
 	}
 

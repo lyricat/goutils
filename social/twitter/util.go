@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -40,35 +41,153 @@ func (c *Client) ValidateToken(ctx context.Context, token *oauth2.Token) error {
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %w", err)
+		return wrapAPIRequestError(req, "error sending request", err)
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %w", err)
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("token validation failed: %s, body: %s", resp.Status, string(body))
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
+		return fmt.Errorf("token validation failed: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) catchError(resp *http.Response, body []byte) error {
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Response Status: %s\n", resp.Status)
-		fmt.Printf("Response Body: %s\n", string(body))
-
-		var errorResponse struct {
-			Errors []struct {
-				Message string `json:"message"`
-				Code    int    `json:"code"`
-			} `json:"errors"`
-		}
-		if err := json.Unmarshal(body, &errorResponse); err == nil && len(errorResponse.Errors) > 0 {
-			return fmt.Errorf("twitter API error: %s (code: %d)", errorResponse.Errors[0].Message, errorResponse.Errors[0].Code)
-		}
-		return fmt.Errorf("failed to get tweets from list: %s, body: %s", resp.Status, string(body))
+func (c *Client) checkAPIResponse(req *http.Request, resp *http.Response, body []byte, okStatusCodes ...int) error {
+	if statusAllowed(resp.StatusCode, okStatusCodes...) {
+		return nil
 	}
-	return nil
+
+	err := buildAPIResponseError(req, resp, body)
+	logAPIResponseError(req, resp, body, err)
+	return err
+}
+
+func statusAllowed(statusCode int, okStatusCodes ...int) bool {
+	for _, okStatusCode := range okStatusCodes {
+		if statusCode == okStatusCode {
+			return true
+		}
+	}
+	return false
+}
+
+func wrapAPIRequestError(req *http.Request, message string, err error) error {
+	attrs := []any{"message", message}
+	if req == nil {
+		wrappedErr := fmt.Errorf("%s: %w", message, err)
+		attrs = append(attrs, "error", wrappedErr)
+		slog.Error("x api request execution failed", attrs...)
+		return wrappedErr
+	}
+	wrappedErr := fmt.Errorf("%s: %s %s: %w", message, req.Method, req.URL.String(), err)
+	attrs = append(attrs,
+		"error", wrappedErr,
+		"method", req.Method,
+		"url", req.URL.String(),
+	)
+	slog.Error("x api request execution failed", attrs...)
+	return wrappedErr
+}
+
+func buildAPIResponseError(req *http.Request, resp *http.Response, body []byte) error {
+	method := "<nil>"
+	requestURL := "<nil>"
+	if req != nil {
+		method = req.Method
+		requestURL = req.URL.String()
+	}
+
+	details := extractAPIErrorDetails(body)
+	messageParts := []string{fmt.Sprintf("%s %s returned %s", method, requestURL, resp.Status)}
+	if details != "" {
+		messageParts = append(messageParts, details)
+	}
+	messageParts = append(messageParts, fmt.Sprintf("body: %s", string(body)))
+
+	if rateLimit := formatRateLimitHeaders(resp); rateLimit != "" {
+		messageParts = append(messageParts, rateLimit)
+	}
+
+	return fmt.Errorf(strings.Join(messageParts, ", "))
+}
+
+func logAPIResponseError(req *http.Request, resp *http.Response, body []byte, err error) {
+	attrs := []any{
+		"error", err,
+		"status", resp.Status,
+		"status_code", resp.StatusCode,
+		"body", string(body),
+	}
+	if req != nil {
+		attrs = append(attrs,
+			"method", req.Method,
+			"url", req.URL.String(),
+		)
+	}
+	if limit := resp.Header.Get("x-rate-limit-limit"); limit != "" {
+		attrs = append(attrs, "x_rate_limit_limit", limit)
+	}
+	if remaining := resp.Header.Get("x-rate-limit-remaining"); remaining != "" {
+		attrs = append(attrs, "x_rate_limit_remaining", remaining)
+	}
+	if reset := resp.Header.Get("x-rate-limit-reset"); reset != "" {
+		attrs = append(attrs, "x_rate_limit_reset", reset)
+	}
+
+	slog.Error("x api request failed", attrs...)
+}
+
+func extractAPIErrorDetails(body []byte) string {
+	var errorResponse struct {
+		Title  string `json:"title"`
+		Detail string `json:"detail"`
+		Type   string `json:"type"`
+		Status int    `json:"status"`
+		Errors []struct {
+			Message string `json:"message"`
+			Code    int    `json:"code"`
+			Title   string `json:"title"`
+			Detail  string `json:"detail"`
+			Type    string `json:"type"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(body, &errorResponse); err != nil {
+		return ""
+	}
+
+	if len(errorResponse.Errors) > 0 {
+		first := errorResponse.Errors[0]
+		switch {
+		case first.Message != "" && first.Code != 0:
+			return fmt.Sprintf("api_error: %s (code: %d)", first.Message, first.Code)
+		case first.Message != "":
+			return fmt.Sprintf("api_error: %s", first.Message)
+		case first.Title != "" || first.Detail != "":
+			return fmt.Sprintf("api_error: %s - %s (%s)", first.Title, first.Detail, first.Type)
+		}
+	}
+	if errorResponse.Title != "" || errorResponse.Detail != "" {
+		return fmt.Sprintf("api_error: %s - %s (%s)", errorResponse.Title, errorResponse.Detail, errorResponse.Type)
+	}
+	return ""
+}
+
+func formatRateLimitHeaders(resp *http.Response) string {
+	parts := []string{}
+	if limit := resp.Header.Get("x-rate-limit-limit"); limit != "" {
+		parts = append(parts, fmt.Sprintf("x-rate-limit-limit=%s", limit))
+	}
+	if remaining := resp.Header.Get("x-rate-limit-remaining"); remaining != "" {
+		parts = append(parts, fmt.Sprintf("x-rate-limit-remaining=%s", remaining))
+	}
+	if reset := resp.Header.Get("x-rate-limit-reset"); reset != "" {
+		parts = append(parts, fmt.Sprintf("x-rate-limit-reset=%s", reset))
+	}
+	return strings.Join(parts, " ")
 }
 
 func FetchWebpageMetadata(url string) (string, string, error) {
@@ -193,13 +312,13 @@ func (t *TweetObject) GetExpandedURLsWithMetadata() []URLInfo {
 				ExpandedURL: url.ExpandedURL,
 				DisplayURL:  url.DisplayURL,
 			}
-			
+
 			// Fetch metadata from the actual webpage
 			if title, description, err := FetchWebpageMetadata(url.ExpandedURL); err == nil {
 				urlInfo.Title = title
 				urlInfo.Description = description
 			}
-			
+
 			urlInfos = append(urlInfos, urlInfo)
 		}
 	}

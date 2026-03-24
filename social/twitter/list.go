@@ -63,8 +63,7 @@ func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, lis
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("error getting tweets from list", "error", err)
-		return nil, err
+		return nil, wrapAPIRequestError(req, "error getting tweets from list", err)
 	}
 	defer resp.Body.Close()
 
@@ -74,8 +73,7 @@ func (c *Client) GetTweetsFromList(ctx context.Context, token *oauth2.Token, lis
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	if err := c.catchError(resp, body); err != nil {
-		slog.Error("error getting tweets from list", "error", err)
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
 		return nil, err
 	}
 
@@ -111,19 +109,16 @@ func (c *Client) GetListMembers(ctx context.Context, token *oauth2.Token, listID
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("error getting members from list", "error", err)
-		return nil, err
+		return nil, wrapAPIRequestError(req, "error getting members from list", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("error reading response body", "error", err)
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	if err := c.catchError(resp, body); err != nil {
-		slog.Error("error getting members from list", "error", err)
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
 		return nil, err
 	}
 

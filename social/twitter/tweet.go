@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -31,7 +30,7 @@ func (c *Client) GetTweetByID(ctx context.Context, token *oauth2.Token, tweetID 
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error getting tweet: %w", err)
+		return nil, wrapAPIRequestError(req, "error getting tweet", err)
 	}
 	defer resp.Body.Close()
 
@@ -40,8 +39,7 @@ func (c *Client) GetTweetByID(ctx context.Context, token *oauth2.Token, tweetID 
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	if err := c.catchError(resp, body); err != nil {
-		slog.Error("error getting tweets from list", "error", err)
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
 		return nil, err
 	}
 
@@ -73,7 +71,7 @@ func (c *Client) GetTweetsByIDs(ctx context.Context, token *oauth2.Token, tweetI
 	client := c.getHTTPClient(ctx, token)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %w", err)
+		return nil, wrapAPIRequestError(req, "error sending request", err)
 	}
 	defer resp.Body.Close()
 
@@ -82,8 +80,7 @@ func (c *Client) GetTweetsByIDs(ctx context.Context, token *oauth2.Token, tweetI
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	if err := c.catchError(resp, body); err != nil {
-		slog.Error("error getting tweets from list", "error", err)
+	if err := c.checkAPIResponse(req, resp, body, http.StatusOK); err != nil {
 		return nil, err
 	}
 
