@@ -11,6 +11,7 @@ import (
 	pb "github.com/qdrant/go-client/qdrant"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -26,6 +27,9 @@ type (
 	Config struct {
 		Addr   string
 		APIKey string
+		// DisableTLS uses plaintext gRPC; only for trusted networks (e.g. local dev).
+		// Zero value keeps TLS enabled.
+		DisableTLS bool
 	}
 
 	QdrantClient struct {
@@ -139,9 +143,14 @@ func genInterceptor(apiKey string) grpc.UnaryClientInterceptor {
 }
 
 func New(cfg Config) (*QdrantClient, error) {
-	config := &tls.Config{}
 	interceptor := genInterceptor(cfg.APIKey)
-	conn, err := grpc.NewClient(cfg.Addr, grpc.WithTransportCredentials(credentials.NewTLS(config)), grpc.WithUnaryInterceptor(interceptor))
+	var transportCreds grpc.DialOption
+	if cfg.DisableTLS {
+		transportCreds = grpc.WithTransportCredentials(insecure.NewCredentials())
+	} else {
+		transportCreds = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
+	}
+	conn, err := grpc.NewClient(cfg.Addr, transportCreds, grpc.WithUnaryInterceptor(interceptor))
 	if err != nil {
 		slog.Error("did not connect", "error", err)
 		return nil, err
